@@ -23,6 +23,35 @@ function getSqlite() {
   return sqliteReady = sqliteReady ?? sqlite3InitModule();
 }
 
+function detectSafariVersion(): number | null {
+  const ua = navigator.userAgent;
+  const safariMatch = ua.match(/Version\/([\d.]+?).*Safari/);
+  const versionString = safariMatch?.[1];
+  if (versionString) {
+    const majorVersion = versionString.split('.')[0];
+    if (majorVersion) {
+      return Number.parseInt(majorVersion, 10);
+    }
+  }
+  return null;
+}
+
+function shouldUseKvvfs(sqlite3: Sqlite3Static): boolean {
+  // Check if OPFS is available
+  const { OpfsDb } = sqlite3.oo1 || {};
+  if (!OpfsDb) {
+    return true;
+  }
+
+  // Check Safari version
+  const safariVersion = detectSafariVersion();
+  if (safariVersion !== null && safariVersion < 17) {
+    return true;
+  }
+
+  return false;
+}
+
 async function downloadDbBytes(dbUrl: string) {
   const response = await fetch(dbUrl, { cache: 'no-store' });
   if (!response.ok)
@@ -39,7 +68,30 @@ async function importDbToOpfs(sqlite3: Sqlite3Static) {
   await OpfsDb.importDb(OPFS_DB_PATH, dbBytes);
 }
 
-function readWords(sqlite3: Sqlite3Static): DbWordRow[] {
+async function loadDbInMemory(sqlite3: Sqlite3Static) {
+  const dbBytes = await downloadDbBytes(dbUrl);
+  const p = sqlite3.wasm.allocFromTypedArray(dbBytes);
+  const db = new sqlite3.oo1.DB();
+  if (!db.pointer) {
+    db.close();
+    throw new Error('无法创建数据库实例');
+  }
+  const rc = sqlite3.capi.sqlite3_deserialize(
+    db.pointer,
+    'main',
+    p,
+    dbBytes.byteLength,
+    dbBytes.byteLength,
+    sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE,
+  );
+  if (rc !== 0) {
+    db.close();
+    throw new Error(`无法加载数据库到内存: ${rc}`);
+  }
+  return db;
+}
+
+function readWordsFromOpfs(sqlite3: Sqlite3Static): DbWordRow[] {
   const { OpfsDb } = sqlite3.oo1 || {};
   if (!OpfsDb)
     throw new Error('OPFS 不可用：请确保浏览器支持并配置 COOP/COEP 响应头。');
@@ -56,20 +108,40 @@ function readWords(sqlite3: Sqlite3Static): DbWordRow[] {
   }
 }
 
+async function readWordsFromMemory(sqlite3: Sqlite3Static): Promise<DbWordRow[]> {
+  const db = await loadDbInMemory(sqlite3);
+  try {
+    return db.exec({
+      sql: 'SELECT * FROM words;',
+      rowMode: 'object',
+      returnValue: 'resultRows',
+    }) as unknown as DbWordRow[];
+  } finally {
+    db.close();
+  }
+}
+
 async function loadWords(shouldRefresh: boolean): Promise<DbWordRow[]> {
   const sqlite3 = await getSqlite();
 
+  // Determine storage strategy
+  if (shouldUseKvvfs(sqlite3)) {
+    // Use in-memory database as fallback when OPFS is unavailable or Safari < 17
+    return await readWordsFromMemory(sqlite3);
+  }
+
+  // Use OPFS
   if (shouldRefresh)
     await importDbToOpfs(sqlite3);
 
   try {
-    return readWords(sqlite3);
+    return readWordsFromOpfs(sqlite3);
   } catch {
     if (shouldRefresh)
       throw new Error('加载数据库失败');
 
     await importDbToOpfs(sqlite3);
-    return readWords(sqlite3);
+    return readWordsFromOpfs(sqlite3);
   }
 }
 

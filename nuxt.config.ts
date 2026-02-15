@@ -27,6 +27,9 @@ export default defineNuxtConfig({
 
   vite: {
     server: { headers },
+    build: {
+      target: 'es2020', // Baseline 2022 (China) compatible target
+    },
   },
 
   nitro: {
