@@ -273,7 +273,7 @@ export function useGame() {
 
     // Save game history to IndexedDB
     if (import.meta.client && selectedMode.value) {
-      void saveGameHistory({
+      const historyRecord = {
         mode: selectedMode.value,
         timestamp: Date.now(),
         finalScore: ctx.score.value,
@@ -287,12 +287,14 @@ export function useGame() {
           word: r.word,
           frequency: r.frequency,
           selectedPos: r.selectedPos,
-          correctPosList: r.correctPosList,
+          correctPosList: [...r.correctPosList],
           resultState: r.resultState,
           durationMs: r.durationMs,
           gainedScore: r.gainedScore,
         })),
-      });
+      };
+      // Use JSON.parse(JSON.stringify()) to ensure plain objects for IndexedDB
+      void saveGameHistory(JSON.parse(JSON.stringify(historyRecord)));
     }
 
     if (selectedMode.value === 'timed') {
