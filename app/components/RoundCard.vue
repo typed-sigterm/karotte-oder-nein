@@ -6,10 +6,13 @@ defineProps<{
   correctPosList: Pos[]
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   choose: [pos: Pos]
   next: []
+  ready: []
 }>();
+
+onMounted(() => emit('ready'));
 </script>
 
 <template>
@@ -29,7 +32,7 @@ defineEmits<{
       :selected-pos="game.selectedPos.value"
       :correct-pos-list
       :reveal-answer="game.revealAnswer.value"
-      @choose="$emit('choose', $event)"
+      @choose="emit('choose', $event)"
     />
 
     <template v-if="game.revealAnswer.value" #footer>
@@ -37,7 +40,7 @@ defineEmits<{
         block
         color="primary"
         variant="outline"
-        @click="$emit('next')"
+        @click="emit('next')"
       >
         下一题
       </UButton>

@@ -17,9 +17,7 @@ provide(GameContextKey, game.ctx);
       <GameHud v-if="game.ctx.showHud" />
     </div>
 
-    <div v-if="game.loading.value" class="flex justify-center py-20">
-      <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin" />
-    </div>
+    <Spinner v-if="game.loading.value" />
 
     <UAlert
       v-else-if="game.errorMessage.value"
@@ -45,21 +43,36 @@ provide(GameContextKey, game.ctx);
     </template>
 
     <template v-else-if="game.isFinished.value">
-      <GameOverCard
-        :game
-        @replay="game.startGame(game.selectedMode.value!)"
-        @back="game.backToModeSelect"
-      />
-
-      <GameSummaryTable :rows="game.rounds.value" />
+      <Suspense>
+        <template #default>
+          <div>
+            <LazyGameOverCard
+              :game
+              @replay="game.startGame(game.selectedMode.value!)"
+              @back="game.backToModeSelect"
+            />
+            <LazyGameSummaryTable :rows="game.rounds.value" />
+          </div>
+        </template>
+        <template #fallback>
+          <Spinner />
+        </template>
+      </Suspense>
     </template>
 
-    <RoundCard
-      v-else-if="game.currentWord.value"
-      :game
-      :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
-      @choose="game.onChoose"
-      @next="game.goToNextRound"
-    />
+    <Suspense v-else-if="game.currentWord.value">
+      <template #default>
+        <LazyRoundCard
+          :game
+          :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
+          @choose="game.onChoose"
+          @next="game.goToNextRound"
+          @ready="game.onRoundCardReady"
+        />
+      </template>
+      <template #fallback>
+        <Spinner />
+      </template>
+    </Suspense>
   </div>
 </template>

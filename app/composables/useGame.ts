@@ -30,6 +30,7 @@ export function useGame() {
   const revealAnswer = refManualReset(false);
   const roundStartedAt = ref(0);
   const isTimedUp = ref(false);
+  const pendingTimedRoundReady = ref(false);
 
   const rounds = ref<RoundResult[]>([]);
   const timedBestScore = useLocalStorage('best:timed', 0);
@@ -56,7 +57,7 @@ export function useGame() {
       showTimer: computed(() => selectedMode.value === 'timed'),
       remainingSeconds: computed(() => countdown.remaining.value),
       score,
-      answeredCount: computed(() => rounds.value.length - 1),
+      answeredCount: computed(() => rounds.value.filter(item => item.resultState !== 'unanswered').length),
       carrotDeltaFx: refAutoReset<number | undefined>(undefined, 900),
       carrotDeltaFxKey: ref(0),
     };
@@ -135,13 +136,24 @@ export function useGame() {
     selectedPos.reset();
     revealAnswer.reset();
     if (mode === 'timed') {
-      countdown.start(TimedSeconds);
+      countdown.stop();
+      countdown.reset(TimedSeconds);
+      pendingTimedRoundReady.value = true;
     } else {
       countdown.stop();
       countdown.reset(TimedSeconds);
+      pendingTimedRoundReady.value = false;
     }
     if (words.value.length > 0)
       startRound();
+  }
+
+  function onRoundCardReady() {
+    if (selectedMode.value !== 'timed' || !pendingTimedRoundReady.value)
+      return;
+    pendingTimedRoundReady.value = false;
+    roundStartedAt.value = Date.now();
+    countdown.start(TimedSeconds);
   }
 
   function backToModeSelect() {
@@ -153,6 +165,7 @@ export function useGame() {
     rounds.value = [];
     ctx.score.reset();
     isTimedUp.value = false;
+    pendingTimedRoundReady.value = false;
     selectedPos.reset();
     revealAnswer.reset();
     ctx.carrotDeltaFx.value = undefined;
@@ -274,6 +287,7 @@ export function useGame() {
     backToModeSelect,
     goToNextRound,
     onChoose,
+    onRoundCardReady,
     init,
   };
 }
