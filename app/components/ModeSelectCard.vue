@@ -3,6 +3,7 @@ import type { GameMode } from '~/utils/game-hud';
 
 const emit = defineEmits<{
   start: [mode: GameMode]
+  showHistory: []
 }>();
 </script>
 
@@ -18,6 +19,9 @@ const emit = defineEmits<{
       </UButton>
       <UButton block color="neutral" variant="outline" icon="i-lucide-infinity" @click="emit('start', 'survival')">
         无尽模式
+      </UButton>
+      <UButton block color="neutral" variant="soft" icon="i-lucide-history" @click="emit('showHistory')">
+        历史记录
       </UButton>
     </div>
   </UCard>

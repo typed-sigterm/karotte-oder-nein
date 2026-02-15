@@ -1,9 +1,18 @@
 <script setup lang="ts">
 const game = useGame();
+const showHistory = ref(false);
 
 onMounted(game.init);
 provide(GameContextKey, game.ctx);
 useMixpanel();
+
+function openHistory() {
+  showHistory.value = true;
+}
+
+function closeHistory() {
+  showHistory.value = false;
+}
 </script>
 
 <template>
@@ -26,18 +35,30 @@ useMixpanel();
     />
 
     <template v-else-if="!game.ctx.mode.value">
-      <ModeSelectCard @start="game.startGame" />
-      <div class="text-muted text-sm mt-2 flex justify-between">
-        <p>
-          &copy; 2026-present
-          <ULink href="https://typed-sigterm.me/?karotte-oder-nein.by-ts.top&utm_medium=footer" target="_blank">
-            Typed SIGTERM
+      <template v-if="showHistory">
+        <Suspense>
+          <template #default>
+            <LazyHistoryView @back="closeHistory" />
+          </template>
+          <template #fallback>
+            <Spinner />
+          </template>
+        </Suspense>
+      </template>
+      <template v-else>
+        <ModeSelectCard @start="game.startGame" @show-history="openHistory" />
+        <div class="text-muted text-sm mt-2 flex justify-between">
+          <p>
+            &copy; 2026-present
+            <ULink href="https://typed-sigterm.me/?karotte-oder-nein.by-ts.top&utm_medium=footer" target="_blank">
+              Typed SIGTERM
+            </ULink>
+          </p>
+          <ULink href="http://github.com/typed-sigterm/karotte-oder-nein" target="_blank">
+            <UIcon name="i-logos-github-icon" />
           </ULink>
-        </p>
-        <ULink href="http://github.com/typed-sigterm/karotte-oder-nein" target="_blank">
-          <UIcon name="i-logos-github-icon" />
-        </ULink>
-      </div>
+        </div>
+      </template>
     </template>
 
     <template v-else-if="game.isFinished.value">

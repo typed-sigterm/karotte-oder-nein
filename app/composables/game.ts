@@ -4,6 +4,7 @@ import { shuffle } from '@std/random';
 import { refAutoReset, refManualReset, useCountdown, useLocalStorage, whenever } from '@vueuse/core';
 import confetti from 'canvas-confetti';
 import { trackEvent } from './analytics';
+import { saveGameHistory } from '~/utils/history-db';
 
 const TimedSeconds = 60;
 const SurvivalWrongPenaltyBase = 1.15;
@@ -269,6 +270,30 @@ export function useGame() {
     const accuracy = answeredCount > 0
       ? correctCount.value / answeredCount
       : undefined;
+
+    // Save game history to IndexedDB
+    if (import.meta.client && selectedMode.value) {
+      void saveGameHistory({
+        mode: selectedMode.value,
+        timestamp: Date.now(),
+        finalScore: ctx.score.value,
+        answeredCount,
+        correctCount: correctCount.value,
+        roundsCount: rounds.value.length,
+        accuracy,
+        averageDurationMs: averageMs.value,
+        rounds: rounds.value.map(r => ({
+          round: r.round,
+          word: r.word,
+          frequency: r.frequency,
+          selectedPos: r.selectedPos,
+          correctPosList: r.correctPosList,
+          resultState: r.resultState,
+          durationMs: r.durationMs,
+          gainedScore: r.gainedScore,
+        })),
+      });
+    }
 
     if (selectedMode.value === 'timed') {
       const previousBest = timedBestScore.value;
