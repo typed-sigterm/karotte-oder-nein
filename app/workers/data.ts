@@ -23,9 +23,11 @@ function getSqlite() {
   return sqliteReady = sqliteReady ?? sqlite3InitModule();
 }
 
+// 检测 Safari 浏览器版本
+// 排除 Chrome/Edge（它们的 UA 中也包含 'Safari'）
 function detectSafariVersion(): number | null {
   const ua = navigator.userAgent;
-  // Check if it's Safari (not Chrome/Edge which also contain 'Safari' in UA)
+  // 检查是否为 Safari（而非 Chrome/Edge）
   if (ua.includes('Chrome') || ua.includes('CriOS') || ua.includes('Edg')) {
     return null;
   }
@@ -40,14 +42,16 @@ function detectSafariVersion(): number | null {
   return null;
 }
 
+// 判断是否应该使用内存数据库作为后备方案
+// OPFS 不可用或 Safari < 17 时返回 true
 function shouldUseFallbackStorage(sqlite3: Sqlite3Static): boolean {
-  // Check if OPFS is available
+  // 检查 OPFS 是否可用
   const { OpfsDb } = sqlite3.oo1 || {};
   if (!OpfsDb) {
     return true;
   }
 
-  // Check Safari version
+  // 检查 Safari 版本
   const safariVersion = detectSafariVersion();
   if (safariVersion !== null && safariVersion < 17) {
     return true;
@@ -56,6 +60,7 @@ function shouldUseFallbackStorage(sqlite3: Sqlite3Static): boolean {
   return false;
 }
 
+// 下载数据库文件字节数据
 async function downloadDbBytes(dbUrl: string) {
   const response = await fetch(dbUrl, { cache: 'no-store' });
   if (!response.ok)
@@ -63,6 +68,7 @@ async function downloadDbBytes(dbUrl: string) {
   return response.arrayBuffer();
 }
 
+// 将数据库导入到 OPFS
 async function importDbToOpfs(sqlite3: Sqlite3Static) {
   const { OpfsDb } = sqlite3.oo1 || {};
   if (!OpfsDb || typeof OpfsDb.importDb !== 'function')
@@ -72,29 +78,38 @@ async function importDbToOpfs(sqlite3: Sqlite3Static) {
   await OpfsDb.importDb(OPFS_DB_PATH, dbBytes);
 }
 
+// 使用 oo1.DB 加载数据库到内存
+// 注意：Worker 线程中无法使用 JsStorageDb（仅限主线程）
+// 因此使用标准的内存数据库作为后备方案
 async function loadDbInMemory(sqlite3: Sqlite3Static) {
   const dbBytes = await downloadDbBytes(dbUrl);
-  const p = sqlite3.wasm.allocFromTypedArray(dbBytes);
+  // 使用 oo1.DB API 创建内存数据库
   const db = new sqlite3.oo1.DB();
-  if (!db.pointer) {
+  try {
+    // 通过 deserialize API 加载数据库数据
+    const p = sqlite3.wasm.allocFromTypedArray(dbBytes);
+    if (!db.pointer) {
+      throw new Error('无法创建数据库实例');
+    }
+    const rc = sqlite3.capi.sqlite3_deserialize(
+      db.pointer,
+      'main',
+      p,
+      dbBytes.byteLength,
+      dbBytes.byteLength,
+      sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE,
+    );
+    if (rc !== 0) {
+      throw new Error(`无法加载数据库到内存: ${rc}`);
+    }
+    return db;
+  } catch (error) {
     db.close();
-    throw new Error('无法创建数据库实例');
+    throw error;
   }
-  const rc = sqlite3.capi.sqlite3_deserialize(
-    db.pointer,
-    'main',
-    p,
-    dbBytes.byteLength,
-    dbBytes.byteLength,
-    sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE,
-  );
-  if (rc !== 0) {
-    db.close();
-    throw new Error(`无法加载数据库到内存: ${rc}`);
-  }
-  return db;
 }
 
+// 从 OPFS 读取词语数据
 function readWordsFromOpfs(sqlite3: Sqlite3Static): DbWordRow[] {
   const { OpfsDb } = sqlite3.oo1 || {};
   if (!OpfsDb)
@@ -112,6 +127,7 @@ function readWordsFromOpfs(sqlite3: Sqlite3Static): DbWordRow[] {
   }
 }
 
+// 从内存数据库读取词语数据
 async function readWordsFromMemory(sqlite3: Sqlite3Static): Promise<DbWordRow[]> {
   const db = await loadDbInMemory(sqlite3);
   try {
@@ -125,16 +141,20 @@ async function readWordsFromMemory(sqlite3: Sqlite3Static): Promise<DbWordRow[]>
   }
 }
 
+// 加载词语数据
+// 根据浏览器能力自动选择存储策略：
+// - OPFS 可用且非 Safari < 17: 使用 OPFS（持久化）
+// - 其他情况: 使用内存数据库（每次刷新页面需重新加载）
 async function loadWords(shouldRefresh: boolean): Promise<DbWordRow[]> {
   const sqlite3 = await getSqlite();
 
-  // Determine storage strategy
+  // 确定存储策略
   if (shouldUseFallbackStorage(sqlite3)) {
-    // Use in-memory database as fallback when OPFS is unavailable or Safari < 17
+    // 当 OPFS 不可用或 Safari < 17 时使用内存数据库作为后备
     return await readWordsFromMemory(sqlite3);
   }
 
-  // Use OPFS
+  // 使用 OPFS
   if (shouldRefresh)
     await importDbToOpfs(sqlite3);
 
