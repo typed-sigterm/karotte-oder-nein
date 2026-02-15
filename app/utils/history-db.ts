@@ -12,6 +12,7 @@ export interface GameHistoryRecord {
   answeredCount: number
   correctCount: number
   roundsCount: number
+  /** Accuracy as a fraction (0-1), calculated as correctCount / answeredCount. Undefined if no questions were answered. */
   accuracy?: number
   averageDurationMs: number
   rounds: Array<{

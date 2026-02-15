@@ -293,7 +293,8 @@ export function useGame() {
           gainedScore: r.gainedScore,
         })),
       };
-      // Use JSON.parse(JSON.stringify()) to ensure plain objects for IndexedDB
+      // Use JSON serialization to convert Vue reactive objects to plain objects
+      // This is necessary because IndexedDB's structured clone algorithm fails with Vue proxies
       void saveGameHistory(JSON.parse(JSON.stringify(historyRecord)));
     }
 
