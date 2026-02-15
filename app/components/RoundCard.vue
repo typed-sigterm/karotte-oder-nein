@@ -6,7 +6,7 @@ defineProps<{
   correctPosList: Pos[]
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   choose: [pos: Pos]
   next: []
 }>();
@@ -29,15 +29,15 @@ const emit = defineEmits<{
       :selected-pos="game.selectedPos.value"
       :correct-pos-list
       :reveal-answer="game.revealAnswer.value"
-      @choose="emit('choose', $event)"
+      @choose="$emit('choose', $event)"
     />
 
-    <template v-if="game.revealAnswer" #footer>
+    <template v-if="game.revealAnswer.value" #footer>
       <UButton
         block
         color="primary"
         variant="outline"
-        @click="emit('next')"
+        @click="$emit('next')"
       >
         下一题
       </UButton>
