@@ -2,10 +2,11 @@ let mixpanel: Promise<typeof import('mixpanel-browser')['default']> | undefined;
 export function useMixpanel() {
   return mixpanel ||= import('mixpanel-browser').then((mod) => {
     mod.default.init(import.meta.env.VITE_MIXPANEL_TOKEN, {
-      debug: import.meta.env.DEV,
-      track_pageview: true,
+      track_pageview: !import.meta.env.DEV,
       api_host: 'https://mp-api.by-ts.top',
     });
+    if (import.meta.env.DEV)
+      mod.default.disable();
     return mod.default;
   });
 }

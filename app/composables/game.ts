@@ -1,4 +1,4 @@
-import type { Pos, DbWordRow as Word } from '~/utils/data';
+import type { Pos, WordData as Word } from '~/utils/data';
 import type { GameContext, GameMode } from '~/utils/game-hud';
 import { shuffle } from '@std/random';
 import { refAutoReset, refManualReset, useCountdown, useLocalStorage, whenever } from '@vueuse/core';
