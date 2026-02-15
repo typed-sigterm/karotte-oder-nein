@@ -20,7 +20,7 @@ const OPFS_DB_PATH = '/data.sqlite';
 let sqliteReady: Promise<Sqlite3Static> | undefined;
 
 function getSqlite() {
-  return sqliteReady = sqliteReady ?? sqlite3InitModule();
+  return sqliteReady = sqliteReady || sqlite3InitModule();
 }
 
 async function downloadDbBytes(dbUrl: string) {
@@ -83,7 +83,7 @@ interface WorkerLoadRequest {
 
 globalThis.addEventListener('message', async (event: MessageEvent<WorkerLoadRequest>) => {
   try {
-    const shouldRefresh = event.data?.shouldRefresh ?? false;
+    const shouldRefresh = event.data?.shouldRefresh || false;
     const words = await loadWords(shouldRefresh);
     globalThis.postMessage({ words } satisfies Data);
   } catch (error) {

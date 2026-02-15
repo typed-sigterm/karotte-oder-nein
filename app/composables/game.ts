@@ -3,6 +3,7 @@ import type { GameContext, GameMode } from '~/utils/game-hud';
 import { shuffle } from '@std/random';
 import { refAutoReset, refManualReset, useCountdown, useLocalStorage, whenever } from '@vueuse/core';
 import confetti from 'canvas-confetti';
+import { trackEvent } from './analytics';
 
 const TimedSeconds = 60;
 const SurvivalWrongPenaltyBase = 1.15;
@@ -40,7 +41,7 @@ export function useGame() {
     onComplete: () => isTimedUp.value = true,
   });
 
-  const currentWord = computed(() => words.value[currentIndex.value] ?? null);
+  const currentWord = computed(() => words.value[currentIndex.value] || null);
   const ctx: GameContext = (() => {
     const score = refManualReset(0);
     const isRoundFinished = () => {
@@ -146,6 +147,8 @@ export function useGame() {
     }
     if (words.value.length > 0)
       startRound();
+
+    void trackEvent('mode_selected', { mode });
   }
 
   function onRoundCardReady() {
@@ -210,6 +213,19 @@ export function useGame() {
       gainedScore: delta,
     });
 
+    void trackEvent('answer_selected', {
+      mode: selectedMode.value,
+      round: currentIndex.value + 1,
+      word: currentWord.value.word,
+      selected_pos: pos,
+      correct_pos_list: correctPosList,
+      is_correct: isCorrect,
+      duration_ms: durationMs,
+      score_delta: delta,
+      score_after: ctx.score.value,
+      wrong_count_before: previousWrongCount,
+    });
+
     if (selectedMode.value === 'survival' && ctx.score.value < 0)
       return;
 
@@ -249,22 +265,55 @@ export function useGame() {
 
     countdown.pause();
 
+    const answeredCount = ctx.answeredCount.value;
+    const accuracy = answeredCount > 0
+      ? correctCount.value / answeredCount
+      : undefined;
+
     if (selectedMode.value === 'timed') {
       const previousBest = timedBestScore.value;
       timedBestScore.value = Math.max(timedBestScore.value, ctx.score.value);
+      const isNewRecord = timedBestScore.value > previousBest;
       if (timedBestScore.value > previousBest)
         triggerRecordConfetti();
+
+      void trackEvent('game_finished', {
+        mode: selectedMode.value,
+        final_score: ctx.score.value,
+        answered_count: answeredCount,
+        correct_count: correctCount.value,
+        rounds_count: rounds.value.length,
+        accuracy,
+        average_duration_ms: averageMs.value,
+        best_before: previousBest,
+        best_after: timedBestScore.value,
+        is_new_record: isNewRecord,
+        score_schema: 1,
+      });
     } else {
       const previousBest = survivalBestAnswered.value;
       survivalBestAnswered.value = Math.max(survivalBestAnswered.value, ctx.answeredCount.value);
+      const isNewRecord = survivalBestAnswered.value > previousBest;
       if (survivalBestAnswered.value > previousBest)
         triggerRecordConfetti();
+
+      void trackEvent('game_finished', {
+        mode: selectedMode.value,
+        final_score: ctx.score.value,
+        answered_count: answeredCount,
+        correct_count: correctCount.value,
+        rounds_count: rounds.value.length,
+        accuracy,
+        average_duration_ms: averageMs.value,
+        best_before: previousBest,
+        best_after: survivalBestAnswered.value,
+        is_new_record: isNewRecord,
+        score_schema: 1,
+      });
     }
   });
 
-  onUnmounted(() => {
-    countdown.stop();
-  });
+  onUnmounted(() => countdown.stop());
 
   return {
     loading,
