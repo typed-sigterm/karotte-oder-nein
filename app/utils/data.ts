@@ -64,11 +64,14 @@ async function importDbToLocalStorage(sqlite3: Sqlite3Static): Promise<void> {
 
   // 创建临时内存数据库加载数据
   const tempDb = new sqlite3.oo1.DB();
+  if (!tempDb.pointer) {
+    tempDb.close();
+    throw new Error('无法创建临时数据库');
+  }
+
+  let p: number | undefined;
   try {
-    const p = sqlite3.wasm.allocFromTypedArray(dbBytes);
-    if (!tempDb.pointer) {
-      throw new Error('无法创建临时数据库');
-    }
+    p = sqlite3.wasm.allocFromTypedArray(dbBytes);
     const rc = sqlite3.capi.sqlite3_deserialize(
       tempDb.pointer,
       'main',
@@ -78,13 +81,19 @@ async function importDbToLocalStorage(sqlite3: Sqlite3Static): Promise<void> {
       sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE,
     );
     if (rc !== 0) {
-      sqlite3.wasm.dealloc(p);
-      throw new Error(`无法加载数据库：${rc}`);
+      const errMsg = sqlite3.capi.sqlite3_errstr(rc);
+      throw new Error(`无法加载数据库：${errMsg} (${rc})`);
     }
+    // 成功后，SQLite 拥有内存所有权
+    p = undefined;
 
     // 使用 VACUUM INTO 导出到 localStorage
     tempDb.exec(`VACUUM INTO 'file:local?vfs=kvvfs'`);
   } finally {
+    // 如果失败，需要手动释放内存
+    if (p !== undefined) {
+      sqlite3.wasm.dealloc(p);
+    }
     tempDb.close();
   }
 }
