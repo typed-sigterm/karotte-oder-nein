@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { GameHistoryRecord } from '~/utils/history-db';
 
-const props = defineProps<{
+defineProps<{
   record: GameHistoryRecord
   expanded?: boolean
 }>();
@@ -38,7 +38,7 @@ function getModeText(mode: string) {
             <UBadge v-if="record.mode === 'timed'" color="primary" size="xs">
               {{ record.finalScore }} 分
             </UBadge>
-            <UBadge v-else color="green" size="xs">
+            <UBadge v-else color="success" size="xs">
               {{ record.answeredCount }} 题
             </UBadge>
           </div>
@@ -46,19 +46,19 @@ function getModeText(mode: string) {
             {{ formatDate(record.timestamp) }}
           </div>
           <div class="text-sm mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-            <div>正确: {{ record.correctCount }} / {{ record.answeredCount }}</div>
+            <div>正确：{{ record.correctCount }} / {{ record.answeredCount }}</div>
             <div v-if="record.accuracy != null">
-              正确率: {{ (record.accuracy * 100).toFixed(1) }}%
+              正确率：{{ (record.accuracy * 100).toFixed(1) }}%
             </div>
             <div v-if="record.answeredCount > 0">
-              平均耗时: {{ (record.averageDurationMs / 1000).toFixed(1) }}s
+              平均耗时：{{ (record.averageDurationMs / 1000).toFixed(1) }}s
             </div>
           </div>
         </div>
         <div class="flex gap-1">
           <UButton
             icon="i-lucide-trash-2"
-            color="red"
+            color="error"
             variant="ghost"
             size="xs"
             @click.stop="$emit('delete', record.id!)"

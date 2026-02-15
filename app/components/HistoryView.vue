@@ -1,19 +1,27 @@
 <script setup lang="ts">
-const { history, loading, error, loadHistory, deleteRecord, clearAll } = useGameHistory();
-const showClearDialog = ref(false);
-
 defineEmits<{
   back: []
 }>();
+const { history, loading, error, loadHistory, deleteRecord, clearAll } = useGameHistory();
+const showClearDialog = ref(false);
+const showDeleteDialog = ref(false);
+const deleteTarget = ref<number | null>(null);
 
 onMounted(() => {
   void loadHistory();
 });
 
-async function handleDelete(id: number) {
-  if (confirm('确定要删除这条记录吗？')) {
-    await deleteRecord(id);
+function promptDelete(id: number) {
+  deleteTarget.value = id;
+  showDeleteDialog.value = true;
+}
+
+async function handleDelete() {
+  if (deleteTarget.value != null) {
+    await deleteRecord(deleteTarget.value);
   }
+  showDeleteDialog.value = false;
+  deleteTarget.value = null;
 }
 
 async function handleClearAll() {
@@ -38,7 +46,7 @@ async function handleClearAll() {
         <UButton
           v-if="history.length > 0"
           icon="i-lucide-trash-2"
-          color="red"
+          color="error"
           variant="ghost"
           @click="showClearDialog = true"
         />
@@ -68,10 +76,40 @@ async function handleClearAll() {
           v-for="record in history"
           :key="record.id"
           :record="record"
-          @delete="handleDelete"
+          @delete="promptDelete"
         />
       </div>
     </UCard>
+
+    <UModal v-model="showDeleteDialog">
+      <UCard>
+        <template #header>
+          <div class="font-semibold">
+            确认删除
+          </div>
+        </template>
+
+        <div class="text-sm mb-4">
+          确定要删除这条记录吗？此操作无法撤销。
+        </div>
+
+        <div class="flex gap-2 justify-end">
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="showDeleteDialog = false"
+          >
+            取消
+          </UButton>
+          <UButton
+            color="error"
+            @click="handleDelete"
+          >
+            删除
+          </UButton>
+        </div>
+      </UCard>
+    </UModal>
 
     <UModal v-model="showClearDialog">
       <UCard>
@@ -94,7 +132,7 @@ async function handleClearAll() {
             取消
           </UButton>
           <UButton
-            color="red"
+            color="error"
             @click="handleClearAll"
           >
             清空

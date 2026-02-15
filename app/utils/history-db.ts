@@ -1,6 +1,7 @@
 import type { DBSchema, IDBPDatabase } from 'idb';
-import { openDB } from 'idb';
+import type { Pos } from './data';
 import type { GameMode } from './game-hud';
+import { openDB } from 'idb';
 
 export interface GameHistoryRecord {
   id?: number
@@ -17,8 +18,8 @@ export interface GameHistoryRecord {
     round: number
     word: string
     frequency: number
-    selectedPos?: number
-    correctPosList: number[]
+    selectedPos?: Pos
+    correctPosList: Pos[]
     resultState: 'correct' | 'wrong' | 'unanswered'
     durationMs: number
     gainedScore: number

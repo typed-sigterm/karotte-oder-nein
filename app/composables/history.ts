@@ -1,5 +1,5 @@
-import { ref } from 'vue';
 import type { GameHistoryRecord } from '~/utils/history-db';
+import { ref } from 'vue';
 import { clearAllHistory, deleteGameHistory, getAllGameHistory } from '~/utils/history-db';
 
 export function useGameHistory() {
@@ -10,7 +10,7 @@ export function useGameHistory() {
   async function loadHistory() {
     if (!import.meta.client)
       return;
-    
+
     loading.value = true;
     error.value = '';
     try {
@@ -26,7 +26,7 @@ export function useGameHistory() {
   async function deleteRecord(id: number) {
     if (!import.meta.client)
       return;
-    
+
     try {
       await deleteGameHistory(id);
       history.value = history.value.filter(record => record.id !== id);
@@ -39,7 +39,7 @@ export function useGameHistory() {
   async function clearAll() {
     if (!import.meta.client)
       return;
-    
+
     try {
       await clearAllHistory();
       history.value = [];

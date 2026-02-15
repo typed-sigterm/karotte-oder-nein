@@ -3,8 +3,8 @@ import type { GameContext, GameMode } from '~/utils/game-hud';
 import { shuffle } from '@std/random';
 import { refAutoReset, refManualReset, useCountdown, useLocalStorage, whenever } from '@vueuse/core';
 import confetti from 'canvas-confetti';
-import { trackEvent } from './analytics';
 import { saveGameHistory } from '~/utils/history-db';
+import { trackEvent } from './analytics';
 
 const TimedSeconds = 60;
 const SurvivalWrongPenaltyBase = 1.15;
