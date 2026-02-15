@@ -4,7 +4,7 @@ import { shuffle } from '@std/random';
 import { refAutoReset, refManualReset, useCountdown, useLocalStorage, whenever } from '@vueuse/core';
 import confetti from 'canvas-confetti';
 
-const TimedSeconds = 10;
+const TimedSeconds = 60;
 const SurvivalWrongPenaltyBase = 1.15;
 
 interface RoundResult {
