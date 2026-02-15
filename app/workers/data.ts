@@ -31,13 +31,10 @@ function detectSafariVersion(): number | null {
   if (ua.includes('Chrome') || ua.includes('CriOS') || ua.includes('Edg')) {
     return null;
   }
-  const safariMatch = ua.match(/Version\/([\d.]+?).*Safari/);
+  const safariMatch = ua.match(/Version\/(\d+)/);
   const versionString = safariMatch?.[1];
   if (versionString) {
-    const majorVersion = versionString.split('.')[0];
-    if (majorVersion) {
-      return Number.parseInt(majorVersion, 10);
-    }
+    return Number.parseInt(versionString, 10);
   }
   return null;
 }
@@ -85,9 +82,10 @@ async function loadDbInMemory(sqlite3: Sqlite3Static) {
   const dbBytes = await downloadDbBytes(dbUrl);
   // 使用 oo1.DB API 创建内存数据库
   const db = new sqlite3.oo1.DB();
+  let p: number | undefined;
   try {
     // 通过 deserialize API 加载数据库数据
-    const p = sqlite3.wasm.allocFromTypedArray(dbBytes);
+    p = sqlite3.wasm.allocFromTypedArray(dbBytes);
     if (!db.pointer) {
       throw new Error('无法创建数据库实例');
     }
@@ -102,8 +100,14 @@ async function loadDbInMemory(sqlite3: Sqlite3Static) {
     if (rc !== 0) {
       throw new Error(`无法加载数据库到内存: ${rc}`);
     }
+    // 成功后，SQLite 拥有内存所有权，不需要手动释放
+    p = undefined;
     return db;
   } catch (error) {
+    // 如果失败，需要手动释放内存（如果还未转移所有权给 SQLite）
+    if (p !== undefined) {
+      sqlite3.wasm.dealloc(p);
+    }
     db.close();
     throw error;
   }
@@ -143,8 +147,8 @@ async function readWordsFromMemory(sqlite3: Sqlite3Static): Promise<DbWordRow[]>
 
 // 加载词语数据
 // 根据浏览器能力自动选择存储策略：
-// - OPFS 可用且非 Safari < 17: 使用 OPFS（持久化）
-// - 其他情况: 使用内存数据库（每次刷新页面需重新加载）
+// - OPFS 可用且非 Safari < 17：使用 OPFS（持久化）
+// - 其他情况：使用内存数据库（每次刷新页面需重新加载）
 async function loadWords(shouldRefresh: boolean): Promise<DbWordRow[]> {
   const sqlite3 = await getSqlite();
 
