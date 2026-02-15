@@ -1,0 +1,7 @@
+{
+  "extends": "@tsconfig/bun/tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.cache/bun.tsbuildinfo"
+  },
+  "include": ["scripts/**/*.ts"]
+}
