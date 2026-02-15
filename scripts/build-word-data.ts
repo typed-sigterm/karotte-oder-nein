@@ -97,7 +97,7 @@ function isGermanNounPos(pos: string): boolean {
 }
 
 function normalizeKaikkiGenderTokenToPos(value: string): Pos | null {
-  return KaikkiGenderTagToPos[value.toLowerCase()] ?? null;
+  return KaikkiGenderTagToPos[value.toLowerCase()] || null;
 }
 
 function hasFormOfTag(tags: unknown): boolean {

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { useGame } from '~/composables/useGame';
-import { GameContextKey } from '~/utils/game-hud';
-
 const game = useGame();
 
 onMounted(game.init);
 provide(GameContextKey, game.ctx);
+useMixpanel();
 </script>
 
 <template>
