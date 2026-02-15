@@ -28,7 +28,10 @@ export default defineNuxtConfig({
   vite: {
     server: { headers },
     build: {
-      target: 'es2020', // Baseline 2022 (China) compatible target
+      // Baseline 2022 (China) - targets ES2020 for compatibility with:
+      // Chrome 80+, Firefox 72+, Safari 13.1+, Edge 80+ which covers
+      // the majority of browsers used in China market
+      target: 'es2020',
     },
   },
 

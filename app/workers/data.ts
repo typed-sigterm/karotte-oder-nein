@@ -25,6 +25,10 @@ function getSqlite() {
 
 function detectSafariVersion(): number | null {
   const ua = navigator.userAgent;
+  // Check if it's Safari (not Chrome/Edge which also contain 'Safari' in UA)
+  if (ua.includes('Chrome') || ua.includes('CriOS') || ua.includes('Edg')) {
+    return null;
+  }
   const safariMatch = ua.match(/Version\/([\d.]+?).*Safari/);
   const versionString = safariMatch?.[1];
   if (versionString) {
@@ -36,7 +40,7 @@ function detectSafariVersion(): number | null {
   return null;
 }
 
-function shouldUseKvvfs(sqlite3: Sqlite3Static): boolean {
+function shouldUseFallbackStorage(sqlite3: Sqlite3Static): boolean {
   // Check if OPFS is available
   const { OpfsDb } = sqlite3.oo1 || {};
   if (!OpfsDb) {
@@ -125,7 +129,7 @@ async function loadWords(shouldRefresh: boolean): Promise<DbWordRow[]> {
   const sqlite3 = await getSqlite();
 
   // Determine storage strategy
-  if (shouldUseKvvfs(sqlite3)) {
+  if (shouldUseFallbackStorage(sqlite3)) {
     // Use in-memory database as fallback when OPFS is unavailable or Safari < 17
     return await readWordsFromMemory(sqlite3);
   }
