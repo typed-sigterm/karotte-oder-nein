@@ -56,7 +56,7 @@ export function useGame() {
       showTimer: computed(() => selectedMode.value === 'timed'),
       remainingSeconds: computed(() => countdown.remaining.value),
       score,
-      answeredCount: computed(() => rounds.value.length),
+      answeredCount: computed(() => rounds.value.length - 1),
       carrotDeltaFx: refAutoReset<number | undefined>(undefined, 900),
       carrotDeltaFxKey: ref(0),
     };

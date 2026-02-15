@@ -19,10 +19,12 @@ const [DefineCorrectCount, CorrectCount] = createReusableTemplate();
     <div class="text-right font-semibold">
       {{ game.correctCount }} / {{ game.ctx.answeredCount.value }}
     </div>
-    <div>正确率</div>
-    <div class="text-right font-semibold">
-      {{ (game.correctCount.value / game.ctx.answeredCount.value * 100).toFixed(2) }}%
-    </div>
+    <template v-if="game.ctx.answeredCount.value > 0">
+      <div>正确率</div>
+      <div class="text-right font-semibold">
+        {{ (game.correctCount.value / game.ctx.answeredCount.value * 100).toFixed(2) }}%
+      </div>
+    </template>
   </DefineCorrectCount>
 
   <UCard class="mb-4" :ui="{ header: 'text-base font-semibold' }">
@@ -44,10 +46,12 @@ const [DefineCorrectCount, CorrectCount] = createReusableTemplate();
         {{ game.ctx.mode.value === 'timed' ? game.timedBestScore : game.survivalBestAnswered }}
       </div>
 
-      <div>平均每题耗时</div>
-      <div class="text-right font-semibold">
-        {{ (game.averageMs.value / 1000).toFixed(2) }}s
-      </div>
+      <template v-if="game.ctx.answeredCount.value > 0">
+        <div>平均每题耗时</div>
+        <div class="text-right font-semibold">
+          {{ (game.averageMs.value / 1000).toFixed(2) }}s
+        </div>
+      </template>
 
       <CorrectCount v-if="game.ctx.mode.value === 'timed'" />
     </div>
