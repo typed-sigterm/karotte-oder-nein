@@ -21,8 +21,7 @@ interface HistoryDB extends DBSchema {
     key: number
     value: StoredGameResult
     indexes: {
-      'by-endedAt': Date
-      'by-mode': GameMode
+      'by-startedAt': Date
     }
   }
 }
@@ -38,10 +37,11 @@ function getDB(): Promise<IDBPDatabase<HistoryDB>> {
       upgrade(db, oldVersion) {
         if (oldVersion < 2 && db.objectStoreNames.contains('history'))
           db.deleteObjectStore('history');
-        db.createObjectStore('history', {
+        const store = db.createObjectStore('history', {
           keyPath: 'id',
           autoIncrement: true,
         });
+        store.createIndex('by-startedAt', 'startedAt');
       },
     });
   }
@@ -55,7 +55,7 @@ export async function saveGameHistory(record: Omit<StoredGameResult, 'id'>): Pro
 
 export async function getAllGameHistory(): Promise<StoredGameResult[]> {
   const db = await getDB();
-  const allRecords = await db.getAllFromIndex('history', 'by-endedAt');
+  const allRecords = await db.getAllFromIndex('history', 'by-startedAt');
   return allRecords.reverse();
 }
 
