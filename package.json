@@ -17,6 +17,7 @@
     "@nuxt/ui": "^4.4.0",
     "@sqlite.org/sqlite-wasm": "^3.51.2-build6",
     "@std/random": "npm:@jsr/std__random",
+    "@unovis/vue": "^1.6.4",
     "@vueuse/core": "^14.2.1",
     "canvas-confetti": "^1.9.4",
     "idb": "^8.0.3",
@@ -44,5 +45,9 @@
     "last 2 years",
     "not dead",
     "> 0.5% in CN"
+  ],
+  "trustedDependencies": [
+    "@parcel/watcher",
+    "maplibre-gl"
   ]
 }

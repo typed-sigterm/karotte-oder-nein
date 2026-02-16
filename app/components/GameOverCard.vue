@@ -14,6 +14,17 @@ defineEmits<{
 
 const [DefineCorrectCount, CorrectCount] = createReusableTemplate();
 const stats = computed(() => getGameResultStats(props.result));
+
+const dataByTime = computed(() => {
+  const ret: { time: number, carrot: number, delta: number }[] = [{ time: 0, carrot: 0, delta: 0 }];
+  let accumulatedTime = 0, accumulatedCarrot = 0;
+  for (const t of props.result.rounds) {
+    accumulatedTime += t.duration;
+    accumulatedCarrot += t.carrot;
+    ret.push({ time: accumulatedTime, carrot: accumulatedCarrot, delta: t.carrot });
+  }
+  return ret;
+});
 </script>
 
 <template>
@@ -30,7 +41,7 @@ const stats = computed(() => getGameResultStats(props.result));
     </template>
   </DefineCorrectCount>
 
-  <UCard class="mb-4" :ui="{ header: 'text-base font-semibold' }">
+  <UCard class="mb-4" :ui="{ header: 'text-base font-semibold m-0', body: 'space-y-4' }">
     <template #header>
       游戏结束
     </template>
@@ -59,7 +70,19 @@ const stats = computed(() => getGameResultStats(props.result));
       <CorrectCount v-if="result.mode === 'timed'" />
     </div>
 
-    <div class="mt-4 grid grid-cols-2 gap-2">
+    <div v-if="result.rounds.length > 1">
+      <LineChart
+        class="h-40"
+        :data="dataByTime"
+        :x="t => t.time"
+        :x-tick-format="x => `${(x / 1000).toFixed(1)}s`"
+        :y="t => t.carrot"
+        :y-tick-format="y => `🥕 ${y}`"
+        :template="t => t.time ? `🥕 ${t.carrot} (${t.delta > 0 ? '+' : ''}${t.delta})` : ''"
+      />
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
       <UButton color="primary" block @click="$emit('replay')">
         再来一局
       </UButton>

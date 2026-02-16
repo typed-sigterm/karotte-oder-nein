@@ -19,10 +19,11 @@ const isVisible = computed(() => gameContext?.showHud.value === true);
         <span
           v-if="gameContext.carrotDeltaFx.value != null"
           :key="gameContext.carrotDeltaFxKey.value"
-          class="pointer-events-none absolute -right-1 -top-6 text-xs font-bold"
+          class="pointer-events-none absolute -right-1 -top-3 text-xs font-bold"
           :class="gameContext.carrotDeltaFx.value > 0 ? 'text-success' : 'text-error'"
         >
-          {{ gameContext.carrotDeltaFx.value > 0 ? `+${gameContext.carrotDeltaFx.value}` : gameContext.carrotDeltaFx.value }}
+          {{ gameContext.carrotDeltaFx.value > 0 ? '+' : '' }}
+          {{ gameContext.carrotDeltaFx.value }}
         </span>
       </Transition>
     </div>
