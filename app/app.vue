@@ -14,7 +14,8 @@ useMixpanel();
         Karotte oder Nein
       </h1>
       <div class="flex items-center gap-2">
-        <UDrawer v-if="!game.ctx.mode.value" v-model:open="showHistoryDrawer" direction="bottom">
+        <GameHud v-if="game.ctx.showHud" />
+        <UDrawer v-else v-model:open="showHistoryDrawer" direction="bottom">
           <UButton
             icon="i-lucide-history"
             color="neutral"
@@ -26,14 +27,11 @@ useMixpanel();
                 <LazyHistoryView />
               </template>
               <template #fallback>
-                <div class="flex justify-center py-8">
-                  <Spinner />
-                </div>
+                <Spinner />
               </template>
             </Suspense>
           </template>
         </UDrawer>
-        <GameHud v-if="game.ctx.showHud" />
       </div>
     </div>
 
@@ -62,34 +60,26 @@ useMixpanel();
       </div>
     </template>
 
-    <template v-else-if="game.isFinished.value">
-      <Suspense>
-        <template #default>
-          <div>
-            <LazyGameOverCard
-              :game
-              @replay="game.startGame(game.selectedMode.value!)"
-              @back="game.backToModeSelect"
-            />
-            <LazyGameSummaryTable :rows="game.rounds.value" />
-          </div>
-        </template>
-        <template #fallback>
-          <Spinner />
-        </template>
-      </Suspense>
-    </template>
+    <Suspense v-else-if="game.isFinished.value">
+      <LazyGameOverCard
+        :game
+         @replay="game.startGame(game.selectedMode.value!)"
+        @back="game.backToModeSelect"
+      />
+       <LazyGameSummaryTable :rows="game.rounds.value" />
+      <template #fallback>
+        <Spinner />
+      </template>
+    </Suspense>
 
     <Suspense v-else-if="game.currentWord.value">
-      <template #default>
-        <LazyRoundCard
-          :game
-          :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
-          @choose="game.onChoose"
-          @next="game.goToNextRound"
-          @ready="game.onRoundCardReady"
-        />
-      </template>
+      <LazyRoundCard
+        :game
+        :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
+        @choose="game.onChoose"
+        @next="game.goToNextRound"
+        @ready="game.onRoundCardReady"
+      />
       <template #fallback>
         <Spinner />
       </template>
