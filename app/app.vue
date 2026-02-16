@@ -12,7 +12,10 @@ useMixpanel();
       <h1 class="text-lg font-bold">
         Karotte oder Nein
       </h1>
-      <GameHud v-if="game.ctx.showHud" />
+      <div class="flex items-center h-0">
+        <GameHud v-if="game.ctx.showHud.value" />
+        <HistoryDrawer v-else />
+      </div>
     </div>
 
     <Spinner v-if="game.loading.value" />
@@ -40,34 +43,28 @@ useMixpanel();
       </div>
     </template>
 
-    <template v-else-if="game.isFinished.value">
-      <Suspense>
-        <template #default>
-          <div>
-            <LazyGameOverCard
-              :game
-              @replay="game.startGame(game.selectedMode.value!)"
-              @back="game.backToModeSelect"
-            />
-            <LazyGameSummaryTable :rows="game.rounds.value" />
-          </div>
-        </template>
-        <template #fallback>
-          <Spinner />
-        </template>
-      </Suspense>
-    </template>
+    <Suspense v-else-if="game.isFinished.value && game.finalResult.value">
+      <div>
+        <LazyGameOverCard
+          :result="game.finalResult.value"
+          @replay="game.startGame(game.selectedMode.value!)"
+          @back="game.backToModeSelect"
+        />
+        <LazyGameSummaryTable :rows="game.finalResult.value.rounds" />
+      </div>
+      <template #fallback>
+        <Spinner />
+      </template>
+    </Suspense>
 
     <Suspense v-else-if="game.currentWord.value">
-      <template #default>
-        <LazyRoundCard
-          :game
-          :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
-          @choose="game.onChoose"
-          @next="game.goToNextRound"
-          @ready="game.onRoundCardReady"
-        />
-      </template>
+      <LazyRoundCard
+        :game
+        :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
+        @choose="game.onChoose"
+        @next="game.goToNextRound"
+        @ready="game.onRoundCardReady"
+      />
       <template #fallback>
         <Spinner />
       </template>

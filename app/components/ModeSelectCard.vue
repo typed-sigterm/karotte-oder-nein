@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GameMode } from '~/utils/game-hud';
+import type { GameMode } from '~/utils/game';
 
 const emit = defineEmits<{
   start: [mode: GameMode]

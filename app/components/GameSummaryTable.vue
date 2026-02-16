@@ -1,62 +1,73 @@
 <script setup lang="ts">
 import type { ColumnDef, ColumnFiltersState, FilterFn } from '@tanstack/vue-table';
 import type { Pos } from '~/utils/data';
+import type { GameResult } from '~/utils/game';
 import { refManualReset } from '@vueuse/core';
-
-export interface RoundResult {
-  round: number
-  word: string
-  frequency: number
-  selectedPos?: Pos
-  correctPosList: Pos[]
-  resultState: 'correct' | 'wrong' | 'unanswered'
-  durationMs: number
-  gainedScore: number
-}
+import { getCorrectPosList } from '~/utils/history';
 
 const props = defineProps<{
-  rows: RoundResult[]
+  rows: GameResult['rounds']
 }>();
+
+// Add round numbers to the data
+type RoundResultRow = (GameResult['rounds'][number]) & { roundNumber: number };
+
+const rowsWithNumbers = computed(() =>
+  props.rows.map((round, index) => ({
+    ...round,
+    roundNumber: index + 1,
+  } as RoundResultRow)),
+);
 
 const selectedPosFilter = refManualReset<'*' | '1' | '2' | '3'>('*');
 const answerFilter = refManualReset<'*' | 'correct' | 'wrong' | 'unanswered'>('*');
 const maxFrequency = refManualReset<number | '' | undefined>(undefined);
 
 const posFilterOptions = [
-  { label: '所有词性', value: '*' },
+  { label: '词性', value: '*' },
   { label: 'm. (der)', value: '1' },
   { label: 'n. (das)', value: '2' },
   { label: 'f. (die)', value: '3' },
 ];
 
 const answerFilterOptions = [
-  { label: '所有状态', value: '*' },
+  { label: '状态', value: '*' },
   { label: '仅答对', value: 'correct' },
   { label: '仅答错', value: 'wrong' },
   { label: '仅未作答', value: 'unanswered' },
 ];
 
-const answerMatchFilter: FilterFn<RoundResult> = (row, _, value: '*' | 'correct' | 'wrong' | 'unanswered') => {
-  return value === '*'
-    ? true
-    : row.original.resultState === value;
+// Helper function to determine result state
+function getResultState(round: GameResult['rounds'][number]): 'correct' | 'wrong' | 'unanswered' {
+  if (!('selectedPos' in round) || round.selectedPos == null)
+    return 'unanswered';
+
+  const correctPosList = getCorrectPosList(round);
+  return correctPosList.includes(round.selectedPos) ? 'correct' : 'wrong';
+}
+
+const answerMatchFilter: FilterFn<RoundResultRow> = (row, _, value: '*' | 'correct' | 'wrong' | 'unanswered') => {
+  if (value === '*')
+    return true;
+  return getResultState(row.original) === value;
 };
 
-const containsPosFilter: FilterFn<RoundResult> = (row, _, value: '*' | '1' | '2' | '3') => {
+const containsPosFilter: FilterFn<RoundResultRow> = (row, _, value: '*' | '1' | '2' | '3') => {
   if (value === '*')
     return true;
   const wanted = Number(value) as Pos;
-  return row.original.correctPosList.includes(wanted);
+  const correctPosList = getCorrectPosList(row.original);
+  return correctPosList.includes(wanted);
 };
 
-const maxFrequencyFilter: FilterFn<RoundResult> = (row, _, value?: number) => {
+const maxFrequencyFilter: FilterFn<RoundResultRow> = (row, _, value?: number) => {
   return value == null
     ? true
     : row.original.frequency <= value;
 };
 
-const columns: ColumnDef<RoundResult>[] = [
-  { accessorKey: 'round', header: '#' },
+const columns: ColumnDef<RoundResultRow>[] = [
+  { accessorKey: 'roundNumber', header: '#' },
   { accessorKey: 'word', header: '单词' },
   {
     accessorKey: 'frequency',
@@ -66,17 +77,23 @@ const columns: ColumnDef<RoundResult>[] = [
   {
     accessorKey: 'selectedPos',
     header: '作答',
-    cell: ({ row }) => formatPos(row.original.selectedPos),
+    cell: ({ row }) => {
+      const selectedPos = 'selectedPos' in row.original ? row.original.selectedPos as Pos | undefined : undefined;
+      return formatPos(selectedPos);
+    },
   },
   {
-    accessorKey: 'correctPosList',
+    id: 'correctPosList',
     header: '答案',
     filterFn: containsPosFilter,
-    cell: ({ row }) => row.original.correctPosList.map(item => formatPos(item)).join(' / '),
+    cell: ({ row }) => {
+      const correctPosList = getCorrectPosList(row.original);
+      return correctPosList.map(pos => formatPos(pos)).join(' / ');
+    },
   },
   {
     id: 'resultState',
-    accessorFn: row => row.resultState,
+    accessorFn: row => getResultState(row),
     filterFn: answerMatchFilter,
     enableHiding: true,
     meta: {
@@ -87,12 +104,12 @@ const columns: ColumnDef<RoundResult>[] = [
     },
   },
   {
-    accessorKey: 'durationMs',
+    id: 'duration',
     header: '耗时',
     cell({ row }) {
-      return row.original.selectedPos
-        ? `${(row.original.durationMs / 1000).toFixed(1)}s`
-        : '';
+      if (!('duration' in row.original))
+        return '';
+      return `${((row.original.duration as number) / 1000).toFixed(1)}s`;
     },
   },
 ];
@@ -160,7 +177,7 @@ function getDefinitionUrl(word: string) {
     </UFieldGroup>
 
     <UTable
-      :data="props.rows"
+      :data="rowsWithNumbers"
       :columns="columns"
       :column-filters="columnFilters"
       :ui="{ th: 'whitespace-nowrap' }"

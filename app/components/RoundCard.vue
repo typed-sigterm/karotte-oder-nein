@@ -18,7 +18,7 @@ onMounted(() => emit('ready'));
 <template>
   <UCard :ui="{ header: 'flex items-center justify-between text-sm' }">
     <template #header>
-      <span>{{ game.modeText }} · 第 {{ game.currentIndex.value + 1 }} 题</span>
+      <span>{{ game.modeText.value }} · 第 {{ game.currentIndex.value + 1 }} 题</span>
       <span>
         {{ game.selectedPos.value ? `词频排名 ${game.currentWord.value?.frequency}` : '' }}
       </span>
