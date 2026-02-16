@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AccordionItem } from '@nuxt/ui';
+
 defineEmits<{
   back: []
 }>();
@@ -43,9 +45,9 @@ function getModeText(mode: string) {
   return mode === 'timed' ? '限时模式' : '无尽模式';
 }
 
-const accordionItems = computed(() => history.value.map((record, index) => ({
+const accordionItems = computed<AccordionItem[]>(() => history.value.map(record => ({
   label: getModeText(record.mode),
-  slot: `item-${index}`,
+  value: String(record.id),
 })));
 </script>
 
@@ -90,8 +92,8 @@ const accordionItems = computed(() => history.value.map((record, index) => ({
     </div>
 
     <UAccordion v-else :items="accordionItems">
-      <template v-for="(record, index) in history" :key="record.id" #[`item-${index}`]>
-        <div class="space-y-3">
+      <template #body="{ item }">
+        <div v-for="record in history.filter(r => String(r.id) === item.value)" :key="record.id" class="space-y-3">
           <div class="flex items-start justify-between gap-2">
             <div class="flex-1">
               <div class="flex items-center gap-2">
