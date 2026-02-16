@@ -5,17 +5,6 @@ import { openDB } from 'idb';
 
 export type StoredGameResult = GameResult & { id?: number };
 
-export interface SummaryRoundRow {
-  round: number
-  word: string
-  frequency: number
-  selectedPos?: DataPos
-  correctPosList: DataPos[]
-  resultState: 'correct' | 'wrong' | 'unanswered'
-  durationMs: number
-  gainedScore: number
-}
-
 interface HistoryDB extends DBSchema {
   history: {
     key: number
@@ -69,23 +58,14 @@ export async function clearAllHistory(): Promise<void> {
   await db.clear('history');
 }
 
-function toBoolean(value: unknown) {
-  return value === true;
-}
+const toBoolean = (x: unknown) => x === true;
 
 function getVerdictValue(round: GameResult['rounds'][number], pos: DataPos): boolean {
   const verdictMap = (round as { verdictMap?: unknown }).verdictMap;
-  if (verdictMap && typeof verdictMap === 'object') {
-    const map = verdictMap as Record<string, unknown>;
-    const keyByLetter = pos === 1 ? 'M' : pos === 2 ? 'N' : 'F';
-    if (toBoolean(map[String(pos)]) || toBoolean(map[keyByLetter]))
-      return true;
-  }
-
-  const legacyCorrectPosList = (round as { correctPosList?: unknown }).correctPosList;
-  if (Array.isArray(legacyCorrectPosList))
-    return legacyCorrectPosList.includes(pos);
-
+  const map = verdictMap as Record<string, unknown>;
+  const keyByLetter = pos === 1 ? 'M' : pos === 2 ? 'N' : 'F';
+  if (toBoolean(map[String(pos)]) || toBoolean(map[keyByLetter]))
+    return true;
   return false;
 }
 
