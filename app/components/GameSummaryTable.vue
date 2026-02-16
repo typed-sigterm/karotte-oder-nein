@@ -23,14 +23,14 @@ const answerFilter = refManualReset<'*' | 'correct' | 'wrong' | 'unanswered'>('*
 const maxFrequency = refManualReset<number | '' | undefined>(undefined);
 
 const posFilterOptions = [
-  { label: '所有词性', value: '*' },
+  { label: '词性', value: '*' },
   { label: 'm. (der)', value: '1' },
   { label: 'n. (das)', value: '2' },
   { label: 'f. (die)', value: '3' },
 ];
 
 const answerFilterOptions = [
-  { label: '所有状态', value: '*' },
+  { label: '状态', value: '*' },
   { label: '仅答对', value: 'correct' },
   { label: '仅答错', value: 'wrong' },
   { label: '仅未作答', value: 'unanswered' },

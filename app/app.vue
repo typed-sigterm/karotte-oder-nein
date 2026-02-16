@@ -21,7 +21,16 @@ function closeHistory() {
       <h1 class="text-lg font-bold">
         Karotte oder Nein
       </h1>
-      <GameHud v-if="game.ctx.showHud" />
+      <div class="flex items-center gap-2">
+        <UButton
+          v-if="!game.ctx.mode.value && !showHistory"
+          icon="i-lucide-history"
+          color="neutral"
+          variant="ghost"
+          @click="openHistory"
+        />
+        <GameHud v-if="game.ctx.showHud" />
+      </div>
     </div>
 
     <Spinner v-if="game.loading.value" />
@@ -46,7 +55,7 @@ function closeHistory() {
         </Suspense>
       </template>
       <template v-else>
-        <ModeSelectCard @start="game.startGame" @show-history="openHistory" />
+        <ModeSelectCard @start="game.startGame" />
         <div class="text-muted text-sm mt-2 flex justify-between">
           <p>
             &copy; 2026-present
