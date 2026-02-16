@@ -38,13 +38,10 @@ function getDB(): Promise<IDBPDatabase<HistoryDB>> {
       upgrade(db, oldVersion) {
         if (oldVersion < 2 && db.objectStoreNames.contains('history'))
           db.deleteObjectStore('history');
-
-        const store = db.createObjectStore('history', {
+        db.createObjectStore('history', {
           keyPath: 'id',
           autoIncrement: true,
         });
-        store.createIndex('by-endedAt', 'endedAt');
-        store.createIndex('by-mode', 'mode');
       },
     });
   }
@@ -95,7 +92,6 @@ function getVerdictValue(round: GameResult['rounds'][number], pos: DataPos): boo
   if (Array.isArray(legacyCorrectPosList))
     return legacyCorrectPosList.includes(pos);
 
-  const keyByLetter = pos === 1 ? 'M' : pos === 2 ? 'N' : 'F';
   return false;
 }
 
