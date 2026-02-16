@@ -1,22 +1,16 @@
 <script setup lang="ts">
 import type { ColumnDef, ColumnFiltersState, FilterFn } from '@tanstack/vue-table';
 import type { Pos } from '~/utils/data';
+import type { GameResult } from '~/utils/game';
+import type { SummaryRoundRow } from '~/utils/history';
 import { refManualReset } from '@vueuse/core';
-
-export interface RoundResult {
-  round: number
-  word: string
-  frequency: number
-  selectedPos?: Pos
-  correctPosList: Pos[]
-  resultState: 'correct' | 'wrong' | 'unanswered'
-  durationMs: number
-  gainedScore: number
-}
+import { toSummaryRoundRow } from '~/utils/history';
 
 const props = defineProps<{
-  rows: RoundResult[]
+  rows: GameResult['rounds']
 }>();
+
+const summaryRows = computed<SummaryRoundRow[]>(() => props.rows.map((round, index) => toSummaryRoundRow(round, index + 1)));
 
 const selectedPosFilter = refManualReset<'*' | '1' | '2' | '3'>('*');
 const answerFilter = refManualReset<'*' | 'correct' | 'wrong' | 'unanswered'>('*');
@@ -36,26 +30,26 @@ const answerFilterOptions = [
   { label: '仅未作答', value: 'unanswered' },
 ];
 
-const answerMatchFilter: FilterFn<RoundResult> = (row, _, value: '*' | 'correct' | 'wrong' | 'unanswered') => {
+const answerMatchFilter: FilterFn<SummaryRoundRow> = (row, _, value: '*' | 'correct' | 'wrong' | 'unanswered') => {
   return value === '*'
     ? true
     : row.original.resultState === value;
 };
 
-const containsPosFilter: FilterFn<RoundResult> = (row, _, value: '*' | '1' | '2' | '3') => {
+const containsPosFilter: FilterFn<SummaryRoundRow> = (row, _, value: '*' | '1' | '2' | '3') => {
   if (value === '*')
     return true;
   const wanted = Number(value) as Pos;
   return row.original.correctPosList.includes(wanted);
 };
 
-const maxFrequencyFilter: FilterFn<RoundResult> = (row, _, value?: number) => {
+const maxFrequencyFilter: FilterFn<SummaryRoundRow> = (row, _, value?: number) => {
   return value == null
     ? true
     : row.original.frequency <= value;
 };
 
-const columns: ColumnDef<RoundResult>[] = [
+const columns: ColumnDef<SummaryRoundRow>[] = [
   { accessorKey: 'round', header: '#' },
   { accessorKey: 'word', header: '单词' },
   {
@@ -160,7 +154,7 @@ function getDefinitionUrl(word: string) {
     </UFieldGroup>
 
     <UTable
-      :data="props.rows"
+      :data="summaryRows"
       :columns="columns"
       :column-filters="columnFilters"
       :ui="{ th: 'whitespace-nowrap' }"

@@ -7,13 +7,13 @@ const isVisible = computed(() => gameContext?.showHud.value === true);
 <template>
   <div v-if="gameContext && isVisible" class="flex items-center gap-2">
     <UBadge v-if="gameContext.showTimer.value" color="warning" variant="soft">
-      ⏳ {{ gameContext.remainingSeconds }}s
+      ⏳ {{ gameContext.remainingSeconds.value }}s
     </UBadge>
 
     <div class="relative">
       <UBadge color="primary" variant="soft">
         🥕
-        {{ gameContext.score }}
+        {{ gameContext.score.value }}
       </UBadge>
       <Transition name="carrot-fx" mode="out-in">
         <span
@@ -28,7 +28,7 @@ const isVisible = computed(() => gameContext?.showHud.value === true);
     </div>
 
     <UBadge color="primary" variant="soft">
-      ✅ {{ gameContext.answeredCount }}
+      ✅ {{ gameContext.answeredCount.value }}
     </UBadge>
   </div>
 </template>

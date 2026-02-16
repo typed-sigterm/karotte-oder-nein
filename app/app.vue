@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const game = useGame();
-const showHistoryDrawer = ref(false);
 
 onMounted(game.init);
 provide(GameContextKey, game.ctx);
@@ -13,25 +12,9 @@ useMixpanel();
       <h1 class="text-lg font-bold">
         Karotte oder Nein
       </h1>
-      <div class="flex items-center gap-2">
-        <GameHud v-if="game.ctx.showHud" />
-        <UDrawer v-else v-model:open="showHistoryDrawer" direction="top">
-          <UButton
-            icon="i-lucide-history"
-            color="neutral"
-            variant="ghost"
-          />
-          <template #content>
-            <Suspense>
-              <template #default>
-                <LazyHistoryView />
-              </template>
-              <template #fallback>
-                <Spinner />
-              </template>
-            </Suspense>
-          </template>
-        </UDrawer>
+      <div class="flex items-center h-0">
+        <GameHud v-if="game.ctx.showHud.value" />
+        <HistoryDrawer v-else />
       </div>
     </div>
 
@@ -60,13 +43,15 @@ useMixpanel();
       </div>
     </template>
 
-    <Suspense v-else-if="game.isFinished.value">
-      <LazyGameOverCard
-        :game
-         @replay="game.startGame(game.selectedMode.value!)"
-        @back="game.backToModeSelect"
-      />
-        <LazyGameSummaryTable :rows="game.rounds.value" />
+    <Suspense v-else-if="game.isFinished.value && game.finalResult.value">
+      <div>
+        <LazyGameOverCard
+          :result="game.finalResult.value"
+          @replay="game.startGame(game.selectedMode.value!)"
+          @back="game.backToModeSelect"
+        />
+        <LazyGameSummaryTable :rows="game.finalResult.value.rounds" />
+      </div>
       <template #fallback>
         <Spinner />
       </template>

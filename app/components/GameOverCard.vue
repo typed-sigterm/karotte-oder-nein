@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { GameResult } from '~/utils/game';
 import { createReusableTemplate } from '@vueuse/core';
+import { getGameResultStats } from '~/utils/history';
 
-defineProps<{
-  game: ReturnType<typeof useGame>
+const props = defineProps<{
+  result: GameResult
 }>();
 
 defineEmits<{
@@ -11,18 +13,19 @@ defineEmits<{
 }>();
 
 const [DefineCorrectCount, CorrectCount] = createReusableTemplate();
+const stats = computed(() => getGameResultStats(props.result));
 </script>
 
 <template>
   <DefineCorrectCount>
     <div>正确回答 / 总答题数</div>
     <div class="text-right font-semibold">
-      {{ game.correctCount }} / {{ game.ctx.answeredCount.value }}
+      {{ stats.correctCount }} / {{ stats.answeredCount }}
     </div>
-    <template v-if="game.ctx.answeredCount.value > 0">
+    <template v-if="stats.answeredCount > 0 && stats.accuracy != null">
       <div>正确率</div>
       <div class="text-right font-semibold">
-        {{ (game.correctCount.value / game.ctx.answeredCount.value * 100).toFixed(2) }}%
+        {{ (stats.accuracy * 100).toFixed(2) }}%
       </div>
     </template>
   </DefineCorrectCount>
@@ -33,27 +36,27 @@ const [DefineCorrectCount, CorrectCount] = createReusableTemplate();
     </template>
 
     <div class="grid grid-cols-2 gap-2 text-sm">
-      <template v-if="game.ctx.mode.value === 'timed'">
+      <template v-if="result.mode === 'timed'">
         <div>总分</div>
         <div class="text-right font-semibold">
-          {{ game.ctx.score.value }}
+          {{ result.carrot }}
         </div>
       </template>
       <CorrectCount v-else />
 
       <div>历史最佳</div>
       <div class="text-right font-semibold">
-        {{ game.ctx.mode.value === 'timed' ? game.timedBestScore : game.survivalBestAnswered }}
+        {{ result.mode === 'timed' ? result.historicalBestCarrot : result.historicalBestCorrect }}
       </div>
 
-      <template v-if="game.ctx.answeredCount.value > 0">
+      <template v-if="stats.answeredCount > 0">
         <div>平均每题耗时</div>
         <div class="text-right font-semibold">
-          {{ (game.averageMs.value / 1000).toFixed(2) }}s
+          {{ (stats.averageDurationMs / 1000).toFixed(2) }}s
         </div>
       </template>
 
-      <CorrectCount v-if="game.ctx.mode.value === 'timed'" />
+      <CorrectCount v-if="result.mode === 'timed'" />
     </div>
 
     <div class="mt-4 grid grid-cols-2 gap-2">

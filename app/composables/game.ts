@@ -1,24 +1,13 @@
 import type { Pos, WordData as Word } from '~/utils/data';
-import type { GameContext, GameMode } from '~/utils/game-hud';
+import type { GameContext, GameMode, GameResult, RoundResult } from '~/utils/game';
 import { shuffle } from '@std/random';
 import { refAutoReset, refManualReset, useCountdown, useLocalStorage, whenever } from '@vueuse/core';
 import confetti from 'canvas-confetti';
-import { saveGameHistory } from '~/utils/history-db';
+import { getCorrectPosList as getRoundCorrectPosList, saveGameHistory } from '~/utils/history';
 import { trackEvent } from './analytics';
 
 const TimedSeconds = 60;
 const SurvivalWrongPenaltyBase = 1.15;
-
-interface RoundResult {
-  round: number
-  word: string
-  frequency: number
-  selectedPos?: Pos
-  correctPosList: Pos[]
-  resultState: 'correct' | 'wrong' | 'unanswered'
-  durationMs: number
-  gainedScore: number
-}
 
 export function useGame() {
   const sourceWords = ref<Word[]>([]);
@@ -30,6 +19,7 @@ export function useGame() {
   const currentIndex = refManualReset(0);
   const selectedPos = refManualReset<Pos | undefined>(undefined);
   const revealAnswer = refManualReset(false);
+  const gameStartedAt = ref(0);
   const roundStartedAt = ref(0);
   const isTimedUp = ref(false);
   const pendingTimedRoundReady = ref(false);
@@ -37,6 +27,7 @@ export function useGame() {
   const rounds = ref<RoundResult[]>([]);
   const timedBestScore = useLocalStorage('best:timed', 0);
   const survivalBestAnswered = useLocalStorage('best:survival', 0);
+  const finalResult = ref<GameResult>();
 
   const countdown = useCountdown(TimedSeconds, {
     onComplete: () => isTimedUp.value = true,
@@ -59,7 +50,7 @@ export function useGame() {
       showTimer: computed(() => selectedMode.value === 'timed'),
       remainingSeconds: computed(() => countdown.remaining.value),
       score,
-      answeredCount: computed(() => rounds.value.filter(item => item.resultState !== 'unanswered').length),
+      answeredCount: computed(() => rounds.value.filter(item => 'selectedPos' in item).length),
       carrotDeltaFx: refAutoReset<number | undefined>(undefined, 900),
       carrotDeltaFxKey: ref(0),
     };
@@ -74,12 +65,17 @@ export function useGame() {
   });
 
   const modeText = computed(() => (selectedMode.value === 'timed' ? '限时模式' : '无尽模式'));
-  const correctCount = computed(() => rounds.value.filter(item => item.resultState === 'correct').length);
+  const correctCount = computed(() => rounds.value.filter((item) => {
+    if (!('selectedPos' in item))
+      return false;
+    return getRoundCorrectPosList(item).includes(item.selectedPos as Pos);
+  }).length);
   const averageMs = computed(() => {
-    if (!rounds.value.length)
+    const answeredRounds = rounds.value.filter(item => 'duration' in item);
+    if (!answeredRounds.length)
       return 0;
-    const sum = rounds.value.reduce((acc, row) => acc + row.durationMs, 0);
-    return sum / rounds.value.length;
+    const sum = answeredRounds.reduce((acc, row) => acc + row.duration, 0);
+    return sum / answeredRounds.length;
   });
 
   function calcScore(i: number, k = 2000): number {
@@ -97,6 +93,25 @@ export function useGame() {
     if (posList.length === 0)
       posList.push(0);
     return posList;
+  }
+
+  function cloneRoundResult(round: RoundResult): RoundResult {
+    if ('selectedPos' in round) {
+      return {
+        word: round.word,
+        frequency: round.frequency,
+        verdictMap: { ...round.verdictMap },
+        selectedPos: round.selectedPos,
+        carrot: round.carrot,
+        duration: round.duration,
+      } as RoundResult;
+    }
+
+    return {
+      word: round.word,
+      frequency: round.frequency,
+      verdictMap: { ...round.verdictMap },
+    } as RoundResult;
   }
 
   function startRound() {
@@ -132,7 +147,9 @@ export function useGame() {
     words.value = shuffle([...sourceWords.value]);
     currentIndex.reset();
     rounds.value = [];
+    finalResult.value = undefined;
     ctx.score.reset();
+    gameStartedAt.value = Date.now();
     isTimedUp.value = false;
     ctx.carrotDeltaFx.value = undefined;
     selectedPos.reset();
@@ -167,7 +184,9 @@ export function useGame() {
     words.value = [];
     currentIndex.reset();
     rounds.value = [];
+    finalResult.value = undefined;
     ctx.score.reset();
+    gameStartedAt.value = 0;
     isTimedUp.value = false;
     pendingTimedRoundReady.value = false;
     selectedPos.reset();
@@ -195,7 +214,11 @@ export function useGame() {
     const correctPosList = getCorrectPosList(currentWord.value);
     const isCorrect = correctPosList.includes(pos);
     const scoreDelta = calcScore(currentWord.value.frequency);
-    const previousWrongCount = rounds.value.filter(item => item.resultState === 'wrong').length;
+    const previousWrongCount = rounds.value.filter((item) => {
+      if (!('selectedPos' in item))
+        return false;
+      return !getRoundCorrectPosList(item).includes(item.selectedPos as Pos);
+    }).length;
     const survivalWrongPenalty = Math.ceil(scoreDelta * SurvivalWrongPenaltyBase ** previousWrongCount);
     const delta = isCorrect
       ? scoreDelta
@@ -204,15 +227,17 @@ export function useGame() {
     addCarrot(delta);
 
     rounds.value.push({
-      round: currentIndex.value + 1,
       word: currentWord.value.word,
       frequency: currentWord.value.frequency,
-      selectedPos: pos,
-      correctPosList,
-      resultState: isCorrect ? 'correct' : 'wrong',
-      durationMs,
-      gainedScore: delta,
-    });
+      verdictMap: {
+        1: correctPosList.includes(1),
+        2: correctPosList.includes(2),
+        3: correctPosList.includes(3),
+      },
+      selectedPos: pos as RoundResult['selectedPos'],
+      carrot: delta,
+      duration: durationMs,
+    } as RoundResult);
 
     void trackEvent('answer_selected', {
       mode: selectedMode.value,
@@ -250,18 +275,18 @@ export function useGame() {
 
   whenever(isFinished, () => {
     const unfinishedRound = currentWord.value;
-    const hasAnsweredCurrentRound = rounds.value.some(item => item.round === currentIndex.value + 1);
+    const hasAnsweredCurrentRound = rounds.value.length > currentIndex.value;
     if (unfinishedRound && selectedPos.value == null && !hasAnsweredCurrentRound) {
+      const correctPosList = getCorrectPosList(unfinishedRound);
       rounds.value.push({
-        round: currentIndex.value + 1,
         word: unfinishedRound.word,
         frequency: unfinishedRound.frequency,
-        selectedPos: undefined,
-        correctPosList: getCorrectPosList(unfinishedRound),
-        resultState: 'unanswered',
-        durationMs: Math.max(0, Date.now() - roundStartedAt.value),
-        gainedScore: 0,
-      });
+        verdictMap: {
+          1: correctPosList.includes(1),
+          2: correctPosList.includes(2),
+          3: correctPosList.includes(3),
+        },
+      } as RoundResult);
     }
 
     countdown.pause();
@@ -270,33 +295,6 @@ export function useGame() {
     const accuracy = answeredCount > 0
       ? correctCount.value / answeredCount
       : undefined;
-
-    // Save game history to IndexedDB
-    if (import.meta.client && selectedMode.value) {
-      const historyRecord = {
-        mode: selectedMode.value,
-        timestamp: Date.now(),
-        finalScore: ctx.score.value,
-        answeredCount,
-        correctCount: correctCount.value,
-        roundsCount: rounds.value.length,
-        accuracy,
-        averageDurationMs: averageMs.value,
-        rounds: rounds.value.map(r => ({
-          round: r.round,
-          word: r.word,
-          frequency: r.frequency,
-          selectedPos: r.selectedPos,
-          correctPosList: [...r.correctPosList],
-          resultState: r.resultState,
-          durationMs: r.durationMs,
-          gainedScore: r.gainedScore,
-        })),
-      };
-      // Use JSON serialization to convert Vue reactive objects to plain objects
-      // This is necessary because IndexedDB's structured clone algorithm fails with Vue proxies
-      void saveGameHistory(JSON.parse(JSON.stringify(historyRecord)));
-    }
 
     if (selectedMode.value === 'timed') {
       const previousBest = timedBestScore.value;
@@ -318,6 +316,24 @@ export function useGame() {
         is_new_record: isNewRecord,
         score_schema: 1,
       });
+
+      const startedAt = new Date(gameStartedAt.value || Date.now());
+      const endedAt = new Date();
+      const historyRecord: GameResult = {
+        schema: 1,
+        mode: 'timed',
+        carrot: ctx.score.value,
+        correct: correctCount.value,
+        startedAt,
+        endedAt,
+        rounds: rounds.value.map(cloneRoundResult),
+        historicalBestCarrot: previousBest,
+      };
+      finalResult.value = historyRecord;
+
+      if (import.meta.client) {
+        void saveGameHistory(historyRecord);
+      }
     } else {
       const previousBest = survivalBestAnswered.value;
       survivalBestAnswered.value = Math.max(survivalBestAnswered.value, ctx.answeredCount.value);
@@ -338,6 +354,24 @@ export function useGame() {
         is_new_record: isNewRecord,
         score_schema: 1,
       });
+
+      const startedAt = new Date(gameStartedAt.value || Date.now());
+      const endedAt = new Date();
+      const historyRecord: GameResult = {
+        schema: 1,
+        mode: 'survival',
+        carrot: ctx.score.value,
+        correct: correctCount.value,
+        startedAt,
+        endedAt,
+        rounds: rounds.value.map(cloneRoundResult),
+        historicalBestCorrect: previousBest,
+      };
+      finalResult.value = historyRecord;
+
+      if (import.meta.client) {
+        void saveGameHistory(historyRecord);
+      }
     }
   });
 
@@ -351,14 +385,11 @@ export function useGame() {
     selectedPos,
     revealAnswer,
     rounds,
-    timedBestScore,
-    survivalBestAnswered,
+    finalResult,
     currentWord,
     ctx,
     isFinished,
     modeText,
-    correctCount,
-    averageMs,
     getCorrectPosList,
     startGame,
     backToModeSelect,

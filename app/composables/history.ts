@@ -1,9 +1,9 @@
-import type { GameHistoryRecord } from '~/utils/history-db';
+import type { StoredGameResult } from '~/utils/history';
 import { ref } from 'vue';
-import { clearAllHistory, deleteGameHistory, getAllGameHistory } from '~/utils/history-db';
+import { clearAllHistory, deleteGameHistory, getAllGameHistory } from '~/utils/history';
 
 export function useGameHistory() {
-  const history = ref<GameHistoryRecord[]>([]);
+  const history = ref<StoredGameResult[]>([]);
   const loading = ref(false);
   const error = ref<string>('');
 
