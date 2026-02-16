@@ -133,8 +133,6 @@ export function useGame() {
   }
 
   function triggerRecordConfetti() {
-    if (!import.meta.client)
-      return;
     confetti({
       particleCount: 120,
       spread: 70,
@@ -319,7 +317,7 @@ export function useGame() {
 
       const startedAt = new Date(gameStartedAt.value || Date.now());
       const endedAt = new Date();
-      const historyRecord: GameResult = {
+      void saveGameHistory(finalResult.value = {
         schema: 1,
         mode: 'timed',
         carrot: ctx.score.value,
@@ -328,12 +326,7 @@ export function useGame() {
         endedAt,
         rounds: rounds.value.map(cloneRoundResult),
         historicalBestCarrot: previousBest,
-      };
-      finalResult.value = historyRecord;
-
-      if (import.meta.client) {
-        void saveGameHistory(historyRecord);
-      }
+      });
     } else {
       const previousBest = survivalBestAnswered.value;
       survivalBestAnswered.value = Math.max(survivalBestAnswered.value, ctx.answeredCount.value);
@@ -355,9 +348,9 @@ export function useGame() {
         score_schema: 1,
       });
 
-      const startedAt = new Date(gameStartedAt.value || Date.now());
+      const startedAt = new Date(gameStartedAt.value);
       const endedAt = new Date();
-      const historyRecord: GameResult = {
+      void saveGameHistory(finalResult.value = {
         schema: 1,
         mode: 'survival',
         carrot: ctx.score.value,
@@ -366,12 +359,7 @@ export function useGame() {
         endedAt,
         rounds: rounds.value.map(cloneRoundResult),
         historicalBestCorrect: previousBest,
-      };
-      finalResult.value = historyRecord;
-
-      if (import.meta.client) {
-        void saveGameHistory(historyRecord);
-      }
+      });
     }
   });
 

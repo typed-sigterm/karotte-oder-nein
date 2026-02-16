@@ -24,7 +24,7 @@ onMounted(() => emit('ready'));
       </span>
     </template>
 
-    <div class="mb-4 text-center text-3xl font-semibold tracking-wide">
+    <div class="mb-4 text-center text-3xl font-semibold tracking-wide wrap-break-word hyphens-auto" lang="de">
       {{ game.currentWord.value?.word }}
     </div>
 

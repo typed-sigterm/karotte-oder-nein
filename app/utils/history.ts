@@ -15,7 +15,7 @@ interface HistoryDB extends DBSchema {
   }
 }
 
-const DB_NAME = 'karotte-history';
+const DB_NAME = 'karotte-oder-nein';
 const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<HistoryDB>> | null = null;
@@ -37,9 +37,9 @@ function getDB(): Promise<IDBPDatabase<HistoryDB>> {
   return dbPromise;
 }
 
-export async function saveGameHistory(record: Omit<StoredGameResult, 'id'>): Promise<number> {
+export async function saveGameHistory(record: GameResult): Promise<number> {
   const db = await getDB();
-  return await db.add('history', record as StoredGameResult);
+  return await db.add('history', record);
 }
 
 export async function getAllGameHistory(): Promise<StoredGameResult[]> {
@@ -78,25 +78,6 @@ export function getCorrectPosList(round: GameResult['rounds'][number]): DataPos[
   if (getVerdictValue(round, 3))
     result.push(3);
   return result;
-}
-
-export function toSummaryRoundRow(round: GameResult['rounds'][number], roundNumber: number): SummaryRoundRow {
-  const correctPosList = getCorrectPosList(round);
-  const selectedPos = 'selectedPos' in round ? round.selectedPos as DataPos : undefined;
-  const resultState: SummaryRoundRow['resultState'] = selectedPos == null
-    ? 'unanswered'
-    : (correctPosList.includes(selectedPos) ? 'correct' : 'wrong');
-
-  return {
-    round: roundNumber,
-    word: round.word,
-    frequency: round.frequency,
-    selectedPos,
-    correctPosList,
-    resultState,
-    durationMs: 'duration' in round ? round.duration : 0,
-    gainedScore: 'carrot' in round ? round.carrot : 0,
-  };
 }
 
 export function getGameResultStats(record: GameResult) {

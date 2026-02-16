@@ -8,9 +8,6 @@ export function useGameHistory() {
   const error = ref<string>('');
 
   async function loadHistory() {
-    if (!import.meta.client)
-      return;
-
     loading.value = true;
     error.value = '';
     try {
@@ -24,9 +21,6 @@ export function useGameHistory() {
   }
 
   async function deleteRecord(id: number) {
-    if (!import.meta.client)
-      return;
-
     try {
       await deleteGameHistory(id);
       history.value = history.value.filter(record => record.id !== id);
@@ -37,9 +31,6 @@ export function useGameHistory() {
   }
 
   async function clearAll() {
-    if (!import.meta.client)
-      return;
-
     try {
       await clearAllHistory();
       history.value = [];
