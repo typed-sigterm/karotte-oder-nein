@@ -1,18 +1,10 @@
 <script setup lang="ts">
 const game = useGame();
-const showHistory = ref(false);
+const showHistoryDrawer = ref(false);
 
 onMounted(game.init);
 provide(GameContextKey, game.ctx);
 useMixpanel();
-
-function openHistory() {
-  showHistory.value = true;
-}
-
-function closeHistory() {
-  showHistory.value = false;
-}
 </script>
 
 <template>
@@ -22,13 +14,25 @@ function closeHistory() {
         Karotte oder Nein
       </h1>
       <div class="flex items-center gap-2">
-        <UButton
-          v-if="!game.ctx.mode.value && !showHistory"
-          icon="i-lucide-history"
-          color="neutral"
-          variant="ghost"
-          @click="openHistory"
-        />
+        <UDrawer v-if="!game.ctx.mode.value" v-model:open="showHistoryDrawer" direction="bottom">
+          <UButton
+            icon="i-lucide-history"
+            color="neutral"
+            variant="ghost"
+          />
+          <template #content>
+            <Suspense>
+              <template #default>
+                <LazyHistoryView />
+              </template>
+              <template #fallback>
+                <div class="flex justify-center py-8">
+                  <Spinner />
+                </div>
+              </template>
+            </Suspense>
+          </template>
+        </UDrawer>
         <GameHud v-if="game.ctx.showHud" />
       </div>
     </div>
@@ -44,30 +48,18 @@ function closeHistory() {
     />
 
     <template v-else-if="!game.ctx.mode.value">
-      <template v-if="showHistory">
-        <Suspense>
-          <template #default>
-            <LazyHistoryView @back="closeHistory" />
-          </template>
-          <template #fallback>
-            <Spinner />
-          </template>
-        </Suspense>
-      </template>
-      <template v-else>
-        <ModeSelectCard @start="game.startGame" />
-        <div class="text-muted text-sm mt-2 flex justify-between">
-          <p>
-            &copy; 2026-present
-            <ULink href="https://typed-sigterm.me/?karotte-oder-nein.by-ts.top&utm_medium=footer" target="_blank">
-              Typed SIGTERM
-            </ULink>
-          </p>
-          <ULink href="http://github.com/typed-sigterm/karotte-oder-nein" target="_blank">
-            <UIcon name="i-logos-github-icon" />
+      <ModeSelectCard @start="game.startGame" />
+      <div class="text-muted text-sm mt-2 flex justify-between">
+        <p>
+          &copy; 2026-present
+          <ULink href="https://typed-sigterm.me/?karotte-oder-nein.by-ts.top&utm_medium=footer" target="_blank">
+            Typed SIGTERM
           </ULink>
-        </div>
-      </template>
+        </p>
+        <ULink href="http://github.com/typed-sigterm/karotte-oder-nein" target="_blank">
+          <UIcon name="i-logos-github-icon" />
+        </ULink>
+      </div>
     </template>
 
     <template v-else-if="game.isFinished.value">

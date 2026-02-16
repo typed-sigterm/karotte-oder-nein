@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { AccordionItem } from '@nuxt/ui';
 
-defineEmits<{
-  back: []
-}>();
 const { history, loading, error, loadHistory, deleteRecord, clearAll } = useGameHistory();
 const showClearDialog = ref(false);
 const showDeleteDialog = ref(false);
 const deleteTarget = ref<number | null>(null);
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = 10;
 
 onMounted(() => {
   void loadHistory();
@@ -45,22 +46,26 @@ function getModeText(mode: string) {
   return mode === 'timed' ? '限时模式' : '无尽模式';
 }
 
-const accordionItems = computed<AccordionItem[]>(() => history.value.map(record => ({
-  label: getModeText(record.mode),
+// Paginated history
+const paginatedHistory = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return history.value.slice(start, end);
+});
+
+const totalPages = computed(() => Math.ceil(history.value.length / itemsPerPage));
+
+// Each game is its own accordion item
+const accordionItems = computed<AccordionItem[]>(() => paginatedHistory.value.map(record => ({
+  label: `${getModeText(record.mode)} - ${formatDate(record.timestamp)}`,
   value: String(record.id),
 })));
 </script>
 
 <template>
-  <div>
+  <div class="p-4">
     <div class="mb-4 flex items-center justify-between">
-      <UButton
-        icon="i-lucide-arrow-left"
-        color="neutral"
-        variant="ghost"
-        @click="$emit('back')"
-      />
-      <div class="font-semibold flex-1 text-center">
+      <div class="font-semibold flex-1">
         游戏历史记录
       </div>
       <UButton
@@ -68,6 +73,7 @@ const accordionItems = computed<AccordionItem[]>(() => history.value.map(record 
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
+        size="xs"
         @click="showClearDialog = true"
       />
     </div>
@@ -91,103 +97,105 @@ const accordionItems = computed<AccordionItem[]>(() => history.value.map(record 
       </div>
     </div>
 
-    <UAccordion v-else :items="accordionItems">
-      <template #body="{ item }">
-        <div v-for="record in history.filter(r => String(r.id) === item.value)" :key="record.id" class="space-y-3">
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex-1">
-              <div class="flex items-center gap-2">
-                <UBadge v-if="record.mode === 'timed'" color="primary" size="xs">
-                  {{ record.finalScore }} 分
-                </UBadge>
-                <UBadge v-else color="success" size="xs">
-                  {{ record.answeredCount }} 题
-                </UBadge>
-              </div>
-              <div class="text-muted text-sm mt-1">
-                {{ formatDate(record.timestamp) }}
-              </div>
-              <div class="text-sm mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-                <div>正确：{{ record.correctCount }} / {{ record.answeredCount }}</div>
-                <div v-if="record.accuracy != null">
-                  正确率：{{ (record.accuracy * 100).toFixed(1) }}%
+    <div v-else class="space-y-4">
+      <UAccordion :items="accordionItems">
+        <template #body="{ item }">
+          <div v-for="record in paginatedHistory.filter(r => String(r.id) === item.value)" :key="record.id" class="space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <UBadge v-if="record.mode === 'timed'" color="primary" size="xs">
+                    {{ record.finalScore }} 分
+                  </UBadge>
+                  <UBadge v-else color="success" size="xs">
+                    {{ record.answeredCount }} 题
+                  </UBadge>
                 </div>
-                <div v-if="record.answeredCount > 0">
-                  平均耗时：{{ (record.averageDurationMs / 1000).toFixed(1) }}s
+                <div class="text-sm mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div>正确：{{ record.correctCount }} / {{ record.answeredCount }}</div>
+                  <div v-if="record.accuracy != null">
+                    正确率：{{ (record.accuracy * 100).toFixed(1) }}%
+                  </div>
+                  <div v-if="record.answeredCount > 0">
+                    平均耗时：{{ (record.averageDurationMs / 1000).toFixed(1) }}s
+                  </div>
                 </div>
               </div>
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                @click.stop="promptDelete(record.id!)"
+              />
             </div>
-            <UButton
-              icon="i-lucide-trash-2"
-              color="error"
-              variant="ghost"
-              size="xs"
-              @click.stop="promptDelete(record.id!)"
-            />
+            <GameSummaryTable :rows="record.rounds" />
           </div>
-          <GameSummaryTable :rows="record.rounds" />
+        </template>
+      </UAccordion>
+
+      <!-- Pagination -->
+      <div v-if="totalPages > 1" class="flex justify-center gap-2">
+        <UButton
+          icon="i-lucide-chevron-left"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :disabled="currentPage === 1"
+          @click="currentPage--"
+        />
+        <div class="flex items-center gap-1 text-sm">
+          <span>{{ currentPage }}</span>
+          <span class="text-muted">/</span>
+          <span class="text-muted">{{ totalPages }}</span>
+        </div>
+        <UButton
+          icon="i-lucide-chevron-right"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :disabled="currentPage === totalPages"
+          @click="currentPage++"
+        />
+      </div>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <UModal v-model:open="showDeleteDialog" title="确认删除" description="确定要删除这条记录吗？此操作无法撤销。">
+      <template #footer>
+        <div class="flex gap-2 justify-end">
+          <UButton
+            color="neutral"
+            variant="outline"
+            label="取消"
+            @click="showDeleteDialog = false"
+          />
+          <UButton
+            color="error"
+            label="删除"
+            @click="handleDelete"
+          />
         </div>
       </template>
-    </UAccordion>
-
-    <UModal v-model="showDeleteDialog">
-      <UCard>
-        <template #header>
-          <div class="font-semibold">
-            确认删除
-          </div>
-        </template>
-
-        <div class="text-sm mb-4">
-          确定要删除这条记录吗？此操作无法撤销。
-        </div>
-
-        <div class="flex gap-2 justify-end">
-          <UButton
-            color="neutral"
-            variant="outline"
-            @click="showDeleteDialog = false"
-          >
-            取消
-          </UButton>
-          <UButton
-            color="error"
-            @click="handleDelete"
-          >
-            删除
-          </UButton>
-        </div>
-      </UCard>
     </UModal>
 
-    <UModal v-model="showClearDialog">
-      <UCard>
-        <template #header>
-          <div class="font-semibold">
-            确认清空
-          </div>
-        </template>
-
-        <div class="text-sm mb-4">
-          确定要清空所有历史记录吗？此操作无法撤销。
-        </div>
-
+    <!-- Clear all confirmation modal -->
+    <UModal v-model:open="showClearDialog" title="确认清空" description="确定要清空所有历史记录吗？此操作无法撤销。">
+      <template #footer>
         <div class="flex gap-2 justify-end">
           <UButton
             color="neutral"
             variant="outline"
+            label="取消"
             @click="showClearDialog = false"
-          >
-            取消
-          </UButton>
+          />
           <UButton
             color="error"
+            label="清空"
             @click="handleClearAll"
-          >
-            清空
-          </UButton>
+          />
         </div>
-      </UCard>
+      </template>
     </UModal>
   </div>
 </template>
