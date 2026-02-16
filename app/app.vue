@@ -15,7 +15,7 @@ useMixpanel();
       </h1>
       <div class="flex items-center gap-2">
         <GameHud v-if="game.ctx.showHud" />
-        <UDrawer v-else v-model:open="showHistoryDrawer" direction="bottom">
+        <UDrawer v-else v-model:open="showHistoryDrawer" direction="top">
           <UButton
             icon="i-lucide-history"
             color="neutral"
@@ -66,7 +66,7 @@ useMixpanel();
          @replay="game.startGame(game.selectedMode.value!)"
         @back="game.backToModeSelect"
       />
-       <LazyGameSummaryTable :rows="game.rounds.value" />
+        <LazyGameSummaryTable :rows="game.rounds.value" />
       <template #fallback>
         <Spinner />
       </template>
