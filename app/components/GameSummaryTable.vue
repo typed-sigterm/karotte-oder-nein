@@ -2,15 +2,22 @@
 import type { ColumnDef, ColumnFiltersState, FilterFn } from '@tanstack/vue-table';
 import type { Pos } from '~/utils/data';
 import type { GameResult } from '~/utils/game';
-import type { SummaryRoundRow } from '~/utils/history';
 import { refManualReset } from '@vueuse/core';
-import { toSummaryRoundRow } from '~/utils/history';
+import { getCorrectPosList } from '~/utils/history';
 
 const props = defineProps<{
   rows: GameResult['rounds']
 }>();
 
-const summaryRows = computed<SummaryRoundRow[]>(() => props.rows.map((round, index) => toSummaryRoundRow(round, index + 1)));
+// Add round numbers to the data
+type RoundResultRow = (GameResult['rounds'][number]) & { roundNumber: number };
+
+const rowsWithNumbers = computed(() =>
+  props.rows.map((round, index) => ({
+    ...round,
+    roundNumber: index + 1,
+  } as RoundResultRow)),
+);
 
 const selectedPosFilter = refManualReset<'*' | '1' | '2' | '3'>('*');
 const answerFilter = refManualReset<'*' | 'correct' | 'wrong' | 'unanswered'>('*');
@@ -30,27 +37,37 @@ const answerFilterOptions = [
   { label: '仅未作答', value: 'unanswered' },
 ];
 
-const answerMatchFilter: FilterFn<SummaryRoundRow> = (row, _, value: '*' | 'correct' | 'wrong' | 'unanswered') => {
-  return value === '*'
-    ? true
-    : row.original.resultState === value;
+// Helper function to determine result state
+function getResultState(round: GameResult['rounds'][number]): 'correct' | 'wrong' | 'unanswered' {
+  if (!('selectedPos' in round) || round.selectedPos == null)
+    return 'unanswered';
+
+  const correctPosList = getCorrectPosList(round);
+  return correctPosList.includes(round.selectedPos) ? 'correct' : 'wrong';
+}
+
+const answerMatchFilter: FilterFn<RoundResultRow> = (row, _, value: '*' | 'correct' | 'wrong' | 'unanswered') => {
+  if (value === '*')
+    return true;
+  return getResultState(row.original) === value;
 };
 
-const containsPosFilter: FilterFn<SummaryRoundRow> = (row, _, value: '*' | '1' | '2' | '3') => {
+const containsPosFilter: FilterFn<RoundResultRow> = (row, _, value: '*' | '1' | '2' | '3') => {
   if (value === '*')
     return true;
   const wanted = Number(value) as Pos;
-  return row.original.correctPosList.includes(wanted);
+  const correctPosList = getCorrectPosList(row.original);
+  return correctPosList.includes(wanted);
 };
 
-const maxFrequencyFilter: FilterFn<SummaryRoundRow> = (row, _, value?: number) => {
+const maxFrequencyFilter: FilterFn<RoundResultRow> = (row, _, value?: number) => {
   return value == null
     ? true
     : row.original.frequency <= value;
 };
 
-const columns: ColumnDef<SummaryRoundRow>[] = [
-  { accessorKey: 'round', header: '#' },
+const columns: ColumnDef<RoundResultRow>[] = [
+  { accessorKey: 'roundNumber', header: '#' },
   { accessorKey: 'word', header: '单词' },
   {
     accessorKey: 'frequency',
@@ -60,17 +77,23 @@ const columns: ColumnDef<SummaryRoundRow>[] = [
   {
     accessorKey: 'selectedPos',
     header: '作答',
-    cell: ({ row }) => formatPos(row.original.selectedPos),
+    cell: ({ row }) => {
+      const selectedPos = 'selectedPos' in row.original ? row.original.selectedPos as Pos | undefined : undefined;
+      return formatPos(selectedPos);
+    },
   },
   {
-    accessorKey: 'correctPosList',
+    id: 'correctPosList',
     header: '答案',
     filterFn: containsPosFilter,
-    cell: ({ row }) => row.original.correctPosList.map(item => formatPos(item)).join(' / '),
+    cell: ({ row }) => {
+      const correctPosList = getCorrectPosList(row.original);
+      return correctPosList.map(pos => formatPos(pos)).join(' / ');
+    },
   },
   {
     id: 'resultState',
-    accessorFn: row => row.resultState,
+    accessorFn: row => getResultState(row),
     filterFn: answerMatchFilter,
     enableHiding: true,
     meta: {
@@ -81,12 +104,12 @@ const columns: ColumnDef<SummaryRoundRow>[] = [
     },
   },
   {
-    accessorKey: 'durationMs',
+    id: 'duration',
     header: '耗时',
     cell({ row }) {
-      return row.original.selectedPos
-        ? `${(row.original.durationMs / 1000).toFixed(1)}s`
-        : '';
+      if (!('duration' in row.original))
+        return '';
+      return `${((row.original.duration as number) / 1000).toFixed(1)}s`;
     },
   },
 ];
@@ -154,7 +177,7 @@ function getDefinitionUrl(word: string) {
     </UFieldGroup>
 
     <UTable
-      :data="summaryRows"
+      :data="rowsWithNumbers"
       :columns="columns"
       :column-filters="columnFilters"
       :ui="{ th: 'whitespace-nowrap' }"

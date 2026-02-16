@@ -1,6 +1,6 @@
 import type { DBSchema, IDBPDatabase } from 'idb';
 import type { Pos as DataPos } from './data';
-import type { GameMode, GameResult } from './game';
+import type { GameResult } from './game';
 import { openDB } from 'idb';
 
 export type StoredGameResult = GameResult & { id?: number };
