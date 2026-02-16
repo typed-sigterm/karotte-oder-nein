@@ -59,12 +59,6 @@ export async function getAllGameHistory(): Promise<StoredGameResult[]> {
   return allRecords.reverse();
 }
 
-export async function getGameHistoryByMode(mode: GameMode): Promise<StoredGameResult[]> {
-  const db = await getDB();
-  const records = await db.getAllFromIndex('history', 'by-mode', mode);
-  return records.sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime());
-}
-
 export async function deleteGameHistory(id: number): Promise<void> {
   const db = await getDB();
   await db.delete('history', id);
