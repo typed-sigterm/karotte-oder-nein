@@ -7,7 +7,7 @@ useMixpanel();
 </script>
 
 <template>
-  <div class="mx-auto min-h-screen w-full max-w-md bg-default px-4 py-4">
+  <div class="mx-auto flex min-h-screen w-full max-w-md flex-col bg-default px-4 py-4">
     <div class="mb-4 flex items-center justify-between">
       <h1 class="text-lg font-bold">
         Karotte oder Nein
@@ -18,19 +18,52 @@ useMixpanel();
       </div>
     </div>
 
-    <Spinner v-if="game.loading.value" />
+    <div class="flex-1 flex flex-col">
+      <Spinner v-if="game.loading.value" />
 
-    <UAlert
-      v-else-if="game.errorMessage.value"
-      color="error"
-      variant="soft"
-      :title="game.errorMessage.value"
-      class="mb-4"
-    />
+      <UAlert
+        v-else-if="game.errorMessage.value"
+        color="error"
+        variant="soft"
+        :title="game.errorMessage.value"
+        class="mb-4"
+      />
 
-    <template v-else-if="!game.ctx.mode.value">
-      <ModeSelectCard @start="game.startGame" />
-      <div class="text-muted text-sm mt-2 flex justify-between">
+      <Suspense v-else-if="!game.ctx.mode.value">
+        <ModeSelectCard @start="game.startGame" />
+        <template #fallback>
+          <Spinner />
+        </template>
+      </Suspense>
+
+      <Suspense v-else-if="game.isFinished.value && game.finalResult.value">
+        <div>
+          <LazyGameOverCard
+            :result="game.finalResult.value"
+            @replay="game.startGame(game.selectedMode.value!)"
+            @back="game.backToModeSelect"
+          />
+          <LazyGameSummaryTable :rows="game.finalResult.value.rounds" />
+        </div>
+        <template #fallback>
+          <Spinner />
+        </template>
+      </Suspense>
+
+      <Suspense v-else-if="game.currentWord.value">
+        <LazyRoundCard
+          :game
+          :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
+          @choose="game.onChoose"
+          @next="game.goToNextRound"
+          @ready="game.onRoundCardReady"
+        />
+        <template #fallback>
+          <Spinner />
+        </template>
+      </Suspense>
+
+      <div class="text-muted text-sm mt-auto pt-2 flex justify-between">
         <p>
           &copy; 2026-present
           <ULink href="https://typed-sigterm.me/?karotte-oder-nein.by-ts.top&utm_medium=footer" target="_blank">
@@ -41,33 +74,6 @@ useMixpanel();
           <UIcon name="i-logos-github-icon" />
         </ULink>
       </div>
-    </template>
-
-    <Suspense v-else-if="game.isFinished.value && game.finalResult.value">
-      <div>
-        <LazyGameOverCard
-          :result="game.finalResult.value"
-          @replay="game.startGame(game.selectedMode.value!)"
-          @back="game.backToModeSelect"
-        />
-        <LazyGameSummaryTable :rows="game.finalResult.value.rounds" />
-      </div>
-      <template #fallback>
-        <Spinner />
-      </template>
-    </Suspense>
-
-    <Suspense v-else-if="game.currentWord.value">
-      <LazyRoundCard
-        :game
-        :correct-pos-list="game.getCorrectPosList(game.currentWord.value!)"
-        @choose="game.onChoose"
-        @next="game.goToNextRound"
-        @ready="game.onRoundCardReady"
-      />
-      <template #fallback>
-        <Spinner />
-      </template>
-    </Suspense>
+    </div>
   </div>
 </template>
