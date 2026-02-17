@@ -22,6 +22,7 @@ export function useGame() {
   const roundStartedAt = ref(0);
   const isTimedUp = ref(false);
   const pendingTimedRoundReady = ref(false);
+  const roundAnsweredAtMap = new Map<number, number>();
 
   const rounds = ref<RoundResult[]>([]);
   const nextCooldownActive = refAutoReset(false, 1000);
@@ -121,6 +122,36 @@ export function useGame() {
     roundStartedAt.value = Date.now();
   }
 
+  function finalizeCurrentRoundDuration(endedAt = Date.now()) {
+    const roundIndex = currentIndex.value;
+    const currentRound = rounds.value[roundIndex];
+    if (!currentRound || !('selectedPos' in currentRound))
+      return;
+
+    const totalDurationMs = Math.max(0, endedAt - roundStartedAt.value);
+    currentRound.duration = totalDurationMs;
+
+    const answeredAt = roundAnsweredAtMap.get(roundIndex);
+    const answerDurationMs = answeredAt == null
+      ? undefined
+      : Math.max(0, answeredAt - roundStartedAt.value);
+    const postAnswerDurationMs = answeredAt == null
+      ? undefined
+      : Math.max(0, endedAt - answeredAt);
+    roundAnsweredAtMap.delete(roundIndex);
+
+    void trackEvent('round_finished', {
+      mode: selectedMode.value,
+      round: roundIndex + 1,
+      word: currentRound.word,
+      selected_pos: currentRound.selectedPos,
+      is_correct: getRoundCorrectPosList(currentRound).includes(currentRound.selectedPos as Pos),
+      answer_duration_ms: answerDurationMs,
+      post_answer_duration_ms: postAnswerDurationMs,
+      duration_ms: totalDurationMs,
+    });
+  }
+
   function playCarrotFx(delta: number) {
     if (!delta)
       return;
@@ -150,6 +181,7 @@ export function useGame() {
     ctx.score.reset();
     gameStartedAt.value = Date.now();
     isTimedUp.value = false;
+    roundAnsweredAtMap.clear();
     ctx.carrotDeltaFx.value = undefined;
     selectedPos.reset();
     revealAnswer.reset();
@@ -188,6 +220,7 @@ export function useGame() {
     gameStartedAt.value = 0;
     isTimedUp.value = false;
     pendingTimedRoundReady.value = false;
+    roundAnsweredAtMap.clear();
     selectedPos.reset();
     revealAnswer.reset();
     ctx.carrotDeltaFx.value = undefined;
@@ -196,6 +229,7 @@ export function useGame() {
   function goToNextRound() {
     if (isFinished.value)
       return;
+    finalizeCurrentRoundDuration();
     currentIndex.value++;
     if (currentIndex.value < words.value.length)
       startRound();
@@ -209,7 +243,7 @@ export function useGame() {
     revealAnswer.value = true;
 
     const now = Date.now();
-    const durationMs = Math.max(0, now - roundStartedAt.value);
+    const answerDurationMs = Math.max(0, now - roundStartedAt.value);
     const correctPosList = getCorrectPosList(currentWord.value);
     const isCorrect = correctPosList.includes(pos);
     if (!isCorrect)
@@ -237,8 +271,9 @@ export function useGame() {
       },
       selectedPos: pos,
       carrot: delta,
-      duration: durationMs,
+      duration: 0,
     } as RoundResult);
+    roundAnsweredAtMap.set(currentIndex.value, now);
 
     void trackEvent('answer_selected', {
       mode: selectedMode.value,
@@ -247,7 +282,7 @@ export function useGame() {
       selected_pos: pos,
       correct_pos_list: correctPosList,
       is_correct: isCorrect,
-      duration_ms: durationMs,
+      duration_ms: answerDurationMs,
       score_delta: delta,
       score_after: ctx.score.value,
       wrong_count_before: previousWrongCount,
@@ -275,6 +310,8 @@ export function useGame() {
   }
 
   whenever(isFinished, () => {
+    finalizeCurrentRoundDuration();
+
     const unfinishedRound = currentWord.value;
     const hasAnsweredCurrentRound = rounds.value.length > currentIndex.value;
     if (unfinishedRound && selectedPos.value == null && !hasAnsweredCurrentRound) {

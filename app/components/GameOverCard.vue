@@ -15,16 +15,30 @@ defineEmits<{
 const [DefineCorrectCount, CorrectCount] = createReusableTemplate();
 const stats = computed(() => getGameResultStats(props.result));
 
+interface ChartDataPoint {
+  time: number
+  carrot: number
+  delta: number
+}
+
 const dataByTime = computed(() => {
-  const ret: { time: number, carrot: number, delta: number }[] = [{ time: 0, carrot: 0, delta: 0 }];
+  const ret: ChartDataPoint[] = [{ time: 0, carrot: 0, delta: 0 }];
   let accumulatedTime = 0, accumulatedCarrot = 0;
   for (const t of props.result.rounds) {
+    if (!('duration' in t))
+      continue;
     accumulatedTime += t.duration;
     accumulatedCarrot += t.carrot;
     ret.push({ time: accumulatedTime, carrot: accumulatedCarrot, delta: t.carrot });
   }
   return ret;
 });
+
+function tooltipTemplate(t: ChartDataPoint) {
+  return t.time
+    ? `🥕 ${t.carrot} (${t.delta > 0 ? '+' : '-'}${Math.abs(t.delta)})`
+    : '';
+}
 </script>
 
 <template>
@@ -78,7 +92,7 @@ const dataByTime = computed(() => {
         :x-tick-format="x => `${(x / 1000).toFixed(1)}s`"
         :y="t => t.carrot"
         :y-tick-format="y => `🥕 ${y}`"
-        :template="t => t.time ? `🥕 ${t.carrot} (${t.delta > 0 ? '+' : ''}${t.delta})` : ''"
+        :template="tooltipTemplate"
       />
     </div>
 
