@@ -40,10 +40,42 @@ onMounted(() => emit('ready'));
         block
         color="primary"
         variant="outline"
+        class="next-button"
+        :class="{ 'is-cooldown': game.nextCooldownActive.value }"
+        :disabled="game.nextCooldownActive.value"
         @click="emit('next')"
       >
-        下一题
+        <span class="next-button-label">下一题</span>
       </UButton>
     </template>
   </UCard>
 </template>
+
+<style scoped>
+:deep() .next-button {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(var(--color-primary), var(--color-primary));
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 0% 100%;
+}
+
+:deep() .next-button.is-cooldown {
+  animation: next-cooldown 1s ease-out;
+}
+
+.next-button-label {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes next-cooldown {
+  from {
+    background-size: 100% 100%;
+  }
+  to {
+    background-size: 0% 100%;
+  }
+}
+</style>
