@@ -24,7 +24,7 @@
     "mixpanel-browser": "^2.74.0",
     "nuxt": "^4.3.1",
     "tailwindcss": "^4.1.18",
-    "zod": "^4.3.6"
+    "valibot": "^1.2.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.4.3",
@@ -33,21 +33,29 @@
     "@types/bun": "^1.3.9",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^25.2.3",
+    "browserslist-to-esbuild": "^2.1.1",
     "eslint": "^9.39.2",
+    "lightningcss": "^1.31.1",
+    "terser": "^5.46.0",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.2.4"
   },
-  "overrides": {
+  "resolutions": {
+    "@vueuse/core": "^14.2.1",
+    "@vueuse/shared": "^14.2.1",
     "vite": "8.0.0-beta.14"
   },
   "browserslist": [
-    "defaults",
-    "last 2 years",
+    "> 0.3%",
     "not dead",
-    "> 0.5% in CN"
+    "> 0.5% in CN",
+    "not IE 11"
   ],
   "trustedDependencies": [
     "@parcel/watcher",
-    "maplibre-gl"
+    "core-js",
+    "esbuild",
+    "maplibre-gl",
+    "vue-demi"
   ]
 }

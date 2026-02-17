@@ -1,5 +1,4 @@
 import type { Sqlite3Static } from '@sqlite.org/sqlite-wasm';
-import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import wordsMeta from '~/assets/data.meta.txt?raw';
 import dbUrl from '~/assets/data.sqlite?url';
 
@@ -15,10 +14,12 @@ export interface WordData {
 
 const LocalVersionKey = 'data-version';
 
-let sqlite3Ready: Promise<Sqlite3Static> | undefined;
+let sqlite3: Promise<Sqlite3Static> | undefined;
 let wordsCache: WordData[] | undefined;
 
-const getSqlite3 = () => sqlite3Ready = sqlite3Ready || sqlite3InitModule();
+function getSqlite3() {
+  return sqlite3 ||= import('@sqlite.org/sqlite-wasm').then(m => m.default());
+}
 
 async function downloadDb() {
   const response = await fetch(dbUrl, { cache: 'no-store' });

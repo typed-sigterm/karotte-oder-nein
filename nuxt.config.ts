@@ -1,3 +1,7 @@
+import browserslistToEsbuild from 'browserslist-to-esbuild';
+import { browserslistToTargets } from 'lightningcss';
+import { browserslist } from './package.json';
+
 export default defineNuxtConfig({
   modules: [
     '@nuxt/ui',
@@ -21,11 +25,19 @@ export default defineNuxtConfig({
   },
 
   vite: {
+    resolve: {
+      dedupe: [
+        '@vueuse/core',
+        '@vueuse/shared',
+      ],
+    },
     build: {
-      // Baseline 2022 (China) - targets ES2020 for compatibility with:
-      // Chrome 80+, Firefox 72+, Safari 13.1+, Edge 80+ which covers
-      // the majority of browsers used in China market
-      target: 'es2020',
+      target: browserslistToEsbuild(browserslist),
+    },
+    css: {
+      lightningcss: {
+        targets: browserslistToTargets(browserslist),
+      },
     },
   },
 

@@ -4,7 +4,6 @@ import { shuffle } from '@std/random';
 import { refAutoReset, refManualReset, useCountdown, useLocalStorage, whenever } from '@vueuse/core';
 import confetti from 'canvas-confetti';
 import { getCorrectPosList as getRoundCorrectPosList, saveGameHistory } from '~/utils/history';
-import { trackEvent } from './analytics';
 
 const TimedSeconds = 60;
 const SurvivalWrongPenaltyBase = 1.15;
@@ -25,6 +24,7 @@ export function useGame() {
   const pendingTimedRoundReady = ref(false);
 
   const rounds = ref<RoundResult[]>([]);
+  const nextCooldownActive = refAutoReset(false, 1000);
   const timedBestScore = useLocalStorage('best:timed', 0);
   const survivalBestAnswered = useLocalStorage('best:survival', 0);
   const finalResult = ref<GameResult>();
@@ -117,6 +117,7 @@ export function useGame() {
   function startRound() {
     selectedPos.reset();
     revealAnswer.reset();
+    nextCooldownActive.value = false;
     roundStartedAt.value = Date.now();
   }
 
@@ -211,6 +212,8 @@ export function useGame() {
     const durationMs = Math.max(0, now - roundStartedAt.value);
     const correctPosList = getCorrectPosList(currentWord.value);
     const isCorrect = correctPosList.includes(pos);
+    if (!isCorrect)
+      nextCooldownActive.value = true;
     const scoreDelta = calcScore(currentWord.value.frequency);
     const previousWrongCount = rounds.value.filter((item) => {
       if (!('selectedPos' in item))
@@ -232,7 +235,7 @@ export function useGame() {
         2: correctPosList.includes(2),
         3: correctPosList.includes(3),
       },
-      selectedPos: pos as RoundResult['selectedPos'],
+      selectedPos: pos,
       carrot: delta,
       duration: durationMs,
     } as RoundResult);
@@ -373,6 +376,7 @@ export function useGame() {
     selectedPos,
     revealAnswer,
     rounds,
+    nextCooldownActive,
     finalResult,
     currentWord,
     ctx,
