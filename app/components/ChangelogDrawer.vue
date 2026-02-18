@@ -20,7 +20,7 @@ const items = changelog.map(x => ({
 } satisfies TimelineItem]);
 // eslint-disable-next-line prefer-template
 const fullLink = 'https://github.com/typed-sigterm/karotte-oder-nein/commits/main'
-  + (changelog[0].id ? `?since=${changelog[0].id}` : '');
+  + (changelog[0]?.id ? `?since=${changelog[0].id}` : '');
 </script>
 
 <template>

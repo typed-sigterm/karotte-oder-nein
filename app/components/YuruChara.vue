@@ -23,6 +23,7 @@ const storedPos = {
 const isStoredPosValid = !Number.isNaN(storedPos.x) && !Number.isNaN(storedPos.y);
 const { style, position } = useDraggable(el, {
   initialValue: isStoredPosValid ? storedPos : undefined,
+  preventDefault: true,
   onEnd(pos) {
     localStorage.setItem('yuru-chara:x', pos.x.toFixed(0).toString());
     localStorage.setItem('yuru-chara:y', pos.y.toFixed(0).toString());
@@ -76,8 +77,8 @@ defineExpose<Functions>({ wink, changeExpression });
       ref="el"
       class="fixed select-none cursor-pointer"
       :style
+      style="touch-action: none;"
       :src="imageSrc"
-      draggable="false"
       width="106"
       height="106"
       @click="wink"
