@@ -4,3 +4,11 @@
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
 }
+
+body {
+  @apply overflow-hidden;
+}
+
+#__nuxt {
+  @apply mx-auto flex min-h-screen w-full max-w-md flex-col bg-default px-4 py-4 overflow-y-auto max-h-dvh;
+}

@@ -8,7 +8,7 @@ import { getCorrectPosList as getRoundCorrectPosList, saveGameHistory } from '~/
 const TimedSeconds = 60;
 const SurvivalWrongPenaltyBase = 1.15;
 
-export function useGame() {
+export function useGame(yuruChara: YuruCharaRef) {
   const sourceWords = ref<Word[]>([]);
   const words = ref<Word[]>([]);
   const loading = ref(true);
@@ -172,6 +172,22 @@ export function useGame() {
     });
   }
 
+  function isWrongRound(round: RoundResult): boolean {
+    if (!('selectedPos' in round))
+      return false;
+    return !getRoundCorrectPosList(round).includes(round.selectedPos as Pos);
+  }
+
+  function getPreviousAnsweredRound(): RoundResult | undefined {
+    for (let index = rounds.value.length - 1; index >= 0; index--) {
+      const round = rounds.value[index];
+      if (!round)
+        continue;
+      if ('selectedPos' in round)
+        return round;
+    }
+  }
+
   function startGame(mode: GameMode) {
     selectedMode.value = mode;
     words.value = shuffle([...sourceWords.value]);
@@ -185,6 +201,7 @@ export function useGame() {
     ctx.carrotDeltaFx.value = undefined;
     selectedPos.reset();
     revealAnswer.reset();
+    yuruChara?.value?.wink();
     if (mode === 'timed') {
       countdown.stop();
       countdown.reset(TimedSeconds);
@@ -246,6 +263,8 @@ export function useGame() {
     const answerDurationMs = Math.max(0, now - roundStartedAt.value);
     const correctPosList = getCorrectPosList(currentWord.value);
     const isCorrect = correctPosList.includes(pos);
+    const previousRound = getPreviousAnsweredRound();
+    const prevRoundFail = previousRound ? isWrongRound(previousRound) : false;
     if (!isCorrect)
       nextCooldownActive.value = true;
     const scoreDelta = calcScore(currentWord.value.frequency);
@@ -287,6 +306,16 @@ export function useGame() {
       score_after: ctx.score.value,
       wrong_count_before: previousWrongCount,
     });
+
+    yuruChara?.value?.changeExpression(
+      isCorrect
+        ? 'normal'
+        : selectedMode.value === 'survival' && currentIndex.value === 0
+          ? 'weeping'
+          : prevRoundFail
+            ? 'gloomy'
+            : 'complaining',
+    );
 
     if (selectedMode.value === 'survival' && ctx.score.value < 0)
       return;
@@ -338,8 +367,10 @@ export function useGame() {
       const previousBest = timedBestScore.value;
       timedBestScore.value = Math.max(timedBestScore.value, ctx.score.value);
       const isNewRecord = timedBestScore.value > previousBest;
-      if (timedBestScore.value > previousBest)
+      if (timedBestScore.value > previousBest) {
         triggerRecordConfetti();
+        yuruChara?.value?.changeExpression('happy');
+      }
 
       void trackEvent('game_finished', {
         mode: selectedMode.value,
@@ -371,8 +402,10 @@ export function useGame() {
       const previousBest = survivalBestAnswered.value;
       survivalBestAnswered.value = Math.max(survivalBestAnswered.value, ctx.answeredCount.value);
       const isNewRecord = survivalBestAnswered.value > previousBest;
-      if (survivalBestAnswered.value > previousBest)
+      if (survivalBestAnswered.value > previousBest) {
         triggerRecordConfetti();
+        yuruChara?.value?.changeExpression('happy');
+      }
 
       void trackEvent('game_finished', {
         mode: selectedMode.value,
