@@ -12,9 +12,10 @@ useMixpanel();
     <h1 class="text-lg font-bold">
       Karotte oder Nein
     </h1>
-    <div class="flex items-center h-0">
+    <div class="flex items-center h-0 gap-1">
       <GameHud v-if="game.ctx.showHud.value" />
       <HistoryDrawer v-else />
+      <ChangelogDrawer />
     </div>
   </div>
 
