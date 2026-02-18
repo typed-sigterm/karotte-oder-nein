@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type { Expression, Functions } from '~/utils/yuru-chara';
 import { promiseTimeout, useDraggable } from '@vueuse/core';
-import urlAngry from '~/assets/yuru-chara/angry.webp?url';
-import urlBlushing from '~/assets/yuru-chara/blushing.webp?url';
-import urlComplaining from '~/assets/yuru-chara/complaining.webp?url';
-import urlGloomy from '~/assets/yuru-chara/gloomy.webp?url';
-import urlHappy from '~/assets/yuru-chara/happy.webp?url';
+import urlAngry from '~/assets/yuru-chara/angry.webp?inline';
+import urlBlushing from '~/assets/yuru-chara/blushing.webp?inline';
+import urlComplaining from '~/assets/yuru-chara/complaining.webp?inline';
+import urlGloomy from '~/assets/yuru-chara/gloomy.webp?inline';
+import urlHappy from '~/assets/yuru-chara/happy.webp?inline';
 import urlNormal from '~/assets/yuru-chara/normal.webp?inline';
-import urlWeeping from '~/assets/yuru-chara/weeping.webp?url';
-import urlWink1 from '~/assets/yuru-chara/wink/1.webp?url';
-import urlWink2 from '~/assets/yuru-chara/wink/2.webp?url';
-import urlWink3 from '~/assets/yuru-chara/wink/3.webp?url';
+import urlWeeping from '~/assets/yuru-chara/weeping.webp?inline';
+import urlWink1 from '~/assets/yuru-chara/wink/1.webp?inline';
+import urlWink2 from '~/assets/yuru-chara/wink/2.webp?inline';
+import urlWink3 from '~/assets/yuru-chara/wink/3.webp?inline';
 
 const el = useTemplateRef('el');
 const container = useTemplateRef('container');
