@@ -64,12 +64,7 @@ useMixpanel();
     <LazyYuruChara ref="yuruChara" />
 
     <div class="text-muted text-sm mt-auto pt-2 flex justify-between">
-      <p>
-        &copy; 2026-present
-        <ULink href="https://typed-sigterm.me/?utm_source=karotte-oder-nein.by-ts.top&utm_medium=footer" target="_blank">
-          Typed SIGTERM
-        </ULink>
-      </p>
+      <AuthorsDrawer />
       <ULink href="http://github.com/typed-sigterm/karotte-oder-nein" target="_blank">
         <UIcon name="i-logos-github-icon" />
       </ULink>
