@@ -71,7 +71,10 @@ export default defineNuxtModule({
     const logger = useLogger('changelog');
     let payload: ChangelogItem[] = [];
     try {
-      payload = await fetchChangelog(logger);
+      if (nuxt.options.dev)
+        logger.debug('开发环境下不获取提交数据');
+      else
+        payload = await fetchChangelog(logger);
     } catch (cause) {
       logger.error(new Error('获取提交数据失败', { cause }));
     }

@@ -32,12 +32,7 @@ useMixpanel();
       class="mb-4"
     />
 
-    <Suspense v-else-if="!game.ctx.mode.value">
-      <ModeSelectCard @start="game.startGame" />
-      <template #fallback>
-        <Spinner />
-      </template>
-    </Suspense>
+    <ModeSelectCard v-else-if="!game.ctx.mode.value" @start="game.startGame" />
 
     <Suspense v-else-if="game.isFinished.value && game.finalResult.value">
       <div>

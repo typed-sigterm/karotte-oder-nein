@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const { history, clearAll } = useGameHistory();
-const open = ref(false);
 const showClearDialog = ref(false);
 
 async function handleClearAll() {
@@ -10,7 +9,7 @@ async function handleClearAll() {
 </script>
 
 <template>
-  <UDrawer v-model:open="open" direction="top" :ui="{ header: 'flex justify-between' }">
+  <UDrawer direction="top" :ui="{ header: 'flex justify-between' }">
     <UButton icon="i-lucide-history" color="neutral" variant="ghost" />
 
     <template #title>
@@ -38,21 +37,24 @@ async function handleClearAll() {
     </template>
   </UDrawer>
 
-  <UModal v-model:open="showClearDialog" title="确认清空" description="确定要清空所有历史记录吗？此操作无法撤销。">
+  <UModal
+    v-model:open="showClearDialog"
+    title="确认清空"
+    description="确定要清空所有历史记录吗？此操作无法撤销。"
+    :ui="{ footer: 'flex gap-2 justify-end' }"
+  >
     <template #footer>
-      <div class="flex gap-2 justify-end">
-        <UButton
-          color="neutral"
-          variant="outline"
-          label="取消"
-          @click="showClearDialog = false"
-        />
-        <UButton
-          color="error"
-          label="清空"
-          @click="handleClearAll"
-        />
-      </div>
+      <UButton
+        color="neutral"
+        variant="outline"
+        label="取消"
+        @click="showClearDialog = false"
+      />
+      <UButton
+        color="error"
+        label="清空"
+        @click="handleClearAll"
+      />
     </template>
   </UModal>
 </template>

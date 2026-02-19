@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import type { ColumnDef, ColumnFiltersState, FilterFn } from '@tanstack/vue-table';
 import type { Pos } from '~/utils/data';
-import type { GameResult } from '~/utils/game';
-import { refManualReset } from '@vueuse/core';
+import type { GameResult, PosString } from '~/utils/game';
 import { getCorrectPosList } from '~/utils/history';
 
 const props = defineProps<{
   rows: GameResult['rounds']
 }>();
+
+const ShortPosMap: Record<Pos, string> = {
+  0: '',
+  1: 'm.',
+  2: 'n.',
+  3: 'f.',
+};
+
+const LongPosMap: Record<Pos, string> = {
+  0: '',
+  1: 'der',
+  2: 'das',
+  3: 'die',
+};
 
 // Add round numbers to the data
 type RoundResultRow = (GameResult['rounds'][number]) & { roundNumber: number };
@@ -19,19 +32,17 @@ const rowsWithNumbers = computed(() =>
   } as RoundResultRow)),
 );
 
-const selectedPosFilter = refManualReset<'*' | '1' | '2' | '3'>('*');
-const answerFilter = refManualReset<'*' | 'correct' | 'wrong' | 'unanswered'>('*');
-const maxFrequency = refManualReset<number | '' | undefined>(undefined);
+const selectedPosFilter = ref<PosString>();
+const answerFilter = ref<undefined | 'correct' | 'wrong' | 'unanswered'>('wrong');
+const maxFrequency = ref<number | ''>();
 
 const posFilterOptions = [
-  { label: '词性', value: '*' },
   { label: 'm. (der)', value: '1' },
   { label: 'n. (das)', value: '2' },
   { label: 'f. (die)', value: '3' },
 ];
 
 const answerFilterOptions = [
-  { label: '状态', value: '*' },
   { label: '仅答对', value: 'correct' },
   { label: '仅答错', value: 'wrong' },
   { label: '仅未作答', value: 'unanswered' },
@@ -46,14 +57,14 @@ function getResultState(round: GameResult['rounds'][number]): 'correct' | 'wrong
   return correctPosList.includes(round.selectedPos) ? 'correct' : 'wrong';
 }
 
-const answerMatchFilter: FilterFn<RoundResultRow> = (row, _, value: '*' | 'correct' | 'wrong' | 'unanswered') => {
-  if (value === '*')
+const answerMatchFilter: FilterFn<RoundResultRow> = (row, _, value?: 'correct' | 'wrong' | 'unanswered') => {
+  if (!value)
     return true;
   return getResultState(row.original) === value;
 };
 
-const containsPosFilter: FilterFn<RoundResultRow> = (row, _, value: '*' | '1' | '2' | '3') => {
-  if (value === '*')
+const containsPosFilter: FilterFn<RoundResultRow> = (row, _, value?: PosString) => {
+  if (!value)
     return true;
   const wanted = Number(value) as Pos;
   const correctPosList = getCorrectPosList(row.original);
@@ -79,28 +90,23 @@ const columns: ColumnDef<RoundResultRow>[] = [
     header: '作答',
     cell: ({ row }) => {
       const selectedPos = 'selectedPos' in row.original ? row.original.selectedPos as Pos | undefined : undefined;
-      return formatPos(selectedPos);
+      return selectedPos ? ShortPosMap[selectedPos] : '';
     },
   },
   {
     id: 'correctPosList',
     header: '答案',
     filterFn: containsPosFilter,
-    cell: ({ row }) => {
-      const correctPosList = getCorrectPosList(row.original);
-      return correctPosList.map(pos => formatPos(pos)).join(' / ');
+    meta: {
+      class: { th: 'hidden', td: 'hidden' },
     },
   },
   {
     id: 'resultState',
     accessorFn: row => getResultState(row),
     filterFn: answerMatchFilter,
-    enableHiding: true,
     meta: {
-      class: {
-        th: 'hidden',
-        td: 'hidden',
-      },
+      class: { th: 'hidden', td: 'hidden' },
     },
   },
   {
@@ -113,16 +119,6 @@ const columns: ColumnDef<RoundResultRow>[] = [
     },
   },
 ];
-
-function formatPos(value?: Pos) {
-  if (value === 1)
-    return 'm.';
-  if (value === 2)
-    return 'n.';
-  if (value === 3)
-    return 'f.';
-  return '';
-}
 
 const columnFilters = computed<ColumnFiltersState>(() => {
   const filters: ColumnFiltersState = [];
@@ -138,6 +134,13 @@ const columnFilters = computed<ColumnFiltersState>(() => {
 
   return filters;
 });
+
+function getArticle(row: RoundResultRow) {
+  return Object.entries(row.verdictMap)
+    .filter(([_, isCorrect]) => isCorrect)
+    .map(([posString]) => (LongPosMap as any)[posString])
+    .join('/');
+}
 
 function getDefinitionUrl(word: string) {
   return `https://www.godic.net/dicts/de/${encodeURIComponent(word)}`;
@@ -159,14 +162,26 @@ function getDefinitionUrl(word: string) {
     </template>
 
     <UFieldGroup>
+      <UBadge
+        class="text-muted"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-filter"
+      />
       <USelectMenu
         v-model="answerFilter"
+        :search-input="false"
         value-key="value"
+        clear
+        placeholder="状态"
         :items="answerFilterOptions"
       />
       <USelectMenu
         v-model="selectedPosFilter"
+        :search-input="false"
         value-key="value"
+        clear
+        placeholder="正确词性"
         :items="posFilterOptions"
       />
       <UInput
@@ -184,14 +199,13 @@ function getDefinitionUrl(word: string) {
       class="max-h-[50vh] overflow-auto"
     >
       <template #word-cell="{ row }">
-        <a
+        {{ getArticle(row.original) }}
+        <ULink
           :href="getDefinitionUrl(row.original.word)"
           target="_blank"
-          rel="noopener noreferrer"
-          class="text-primary hover:underline"
         >
           {{ row.original.word }}
-        </a>
+        </ULink>
       </template>
     </UTable>
   </UCard>

@@ -6,6 +6,8 @@ import * as v from 'valibot';
 export const PosMap = { M: 1, N: 2, F: 3 } as const;
 export const Pos = v.union([v.literal(1), v.literal(2), v.literal(3)]);
 export type Pos = v.InferOutput<typeof Pos>;
+export const PosString = v.union([v.literal('1'), v.literal('2'), v.literal('3')]);
+export type PosString = v.InferOutput<typeof PosString>;
 
 export const GameMode = v.picklist(['timed', 'survival']);
 export type GameMode = v.InferOutput<typeof GameMode>;
@@ -25,7 +27,7 @@ export const GameContextKey: InjectionKey<GameContext> = Symbol('game-context');
 export const RoundResult = v.intersect([v.object({
   word: v.string(),
   frequency: v.pipe(v.number(), v.integer()),
-  verdictMap: v.record(v.string(), v.boolean()),
+  verdictMap: v.record(PosString, v.boolean()),
 }), v.union([
   v.object({}), // 未答
   v.object({
