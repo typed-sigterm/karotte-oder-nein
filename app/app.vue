@@ -14,8 +14,10 @@ useMixpanel();
     </h1>
     <div class="flex items-center h-0 gap-1">
       <GameHud v-if="game.ctx.showHud.value" />
-      <HistoryDrawer v-else />
-      <ChangelogDrawer />
+      <template v-else>
+        <HistoryDrawer />
+        <ChangelogDrawer />
+      </template>
     </div>
   </div>
 
