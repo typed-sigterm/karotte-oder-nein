@@ -24,6 +24,7 @@ const ASSET_OUTPUT_DIR = resolve(ROOT, 'app', 'assets');
 const SQLITE_PATH = resolve(ASSET_OUTPUT_DIR, 'data.sqlite');
 const SQLITE_NEW_PATH = resolve(ASSET_OUTPUT_DIR, 'data.new.sqlite');
 const META_PATH = resolve(ASSET_OUTPUT_DIR, 'data.meta.txt');
+const OVERRIDES_PATH = resolve(ASSET_OUTPUT_DIR, 'data.overrides.jsonl');
 
 async function pathExists(filePath: string): Promise<boolean> {
   try {
@@ -341,7 +342,7 @@ function resolveWordPos(word: string, nounMap: Map<string, Set<Pos>>): Pos[] {
       merged.add(value);
   }
 
-  return [...merged].sort((a, b) => a - b);
+  return Array.from(merged).sort((a, b) => a - b);
 }
 
 async function buildRows(nounMap: Map<string, Set<Pos>>): Promise<WordRow[]> {
@@ -444,68 +445,70 @@ async function writeVersionStamp(): Promise<void> {
   await Bun.write(META_PATH, `${Date.now()}\n`);
 }
 
-interface DbSnapshot {
-  schema: Array<{ type: string, name: string, tbl_name: string, sql: string }>
-  rows: Array<{ word: string, frequency: number, pos_m: 0 | 1, pos_n: 0 | 1, pos_f: 0 | 1 }>
-}
-
-function readDbSnapshot(sqlitePath: string): DbSnapshot {
-  const db = new Database(sqlitePath, { readonly: true, create: false });
-  try {
-    const schemaQuery = db.prepare(`
-      SELECT
-        type,
-        name,
-        tbl_name,
-        COALESCE(sql, '') AS sql
-      FROM sqlite_master
-      WHERE name NOT LIKE 'sqlite_%'
-      ORDER BY type ASC, name ASC;
-    `);
-    const rowsQuery = db.prepare(`
-      SELECT
-        word,
-        frequency,
-        pos_m,
-        pos_n,
-        pos_f
-      FROM words
-      ORDER BY word ASC;
-    `);
-
-    const schema = schemaQuery.all() as DbSnapshot['schema'];
-    const rows = rowsQuery.all() as DbSnapshot['rows'];
-    schemaQuery.finalize();
-    rowsQuery.finalize();
-
-    return { schema, rows };
-  } finally {
-    db.close(true);
-  }
+async function calcChecksum(filePath: string): Promise<string> {
+  const hasher = new Bun.CryptoHasher('sha256');
+  const stream = Bun.file(filePath).stream();
+  for await (const chunk of stream)
+    hasher.update(chunk);
+  return hasher.digest('hex');
 }
 
 async function isWholeDbUnchanged(previousPath: string, nextPath: string): Promise<boolean> {
-  if (!(await pathExists(previousPath))) {
+  if (!(await pathExists(previousPath)))
     return false;
+  const previous = await calcChecksum(previousPath);
+  const next = await calcChecksum(nextPath);
+  return JSON.stringify(previous) === JSON.stringify(next);
+}
+
+async function applyOverrides(rows: WordRow[]): Promise<void> {
+  if (!(await pathExists(OVERRIDES_PATH))) {
+    console.log('未找到覆盖数据文件，跳过合并');
+    return;
   }
 
-  const previous = readDbSnapshot(previousPath);
-  const next = readDbSnapshot(nextPath);
-  return JSON.stringify(previous) === JSON.stringify(next);
+  const rl = createInterface({
+    input: createReadStream(OVERRIDES_PATH, { encoding: 'utf8' }),
+    crlfDelay: Infinity,
+  });
+
+  let overrideCount = 0;
+  for await (const rawLine of rl) {
+    const line = rawLine.trim();
+    if (!line)
+      continue;
+
+    let parsed: Partial<WordRow>;
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      console.warn(`覆盖文件解析失败：${line}`);
+      continue;
+    }
+
+    const word = typeof parsed.word === 'string' ? parsed.word.normalize('NFC') : '';
+    if (!word)
+      continue;
+    const index = rows.findIndex(x => x.word === word);
+    if (index === -1)
+      continue;
+    rows[index] = { ...rows[index], ...parsed as any };
+    overrideCount += 1;
+  }
+
+  console.log(`已应用 ${overrideCount} 条覆盖数据`);
 }
 
 function validateRows(rows: WordRow[]): void {
   const duplicateWordCount = rows.length - new Set(rows.map(row => row.word)).size;
-  if (duplicateWordCount > 0) {
+  if (duplicateWordCount > 0)
     throw new Error(`检测到重复词条：${duplicateWordCount}`);
-  }
 
   const frequencies = rows.map(row => row.frequency).sort((a, b) => a - b);
   for (let index = 0; index < frequencies.length; index += 1) {
     const expected = index + 1;
-    if (frequencies[index] !== expected) {
+    if (frequencies[index] !== expected)
       throw new Error(`词频排名不连续: 期望 ${expected}, 实际 ${frequencies[index]}`);
-    }
   }
 
   const lowercaseNounRows = rows.filter((row) => {
@@ -539,6 +542,9 @@ async function main(): Promise<void> {
 
   validateRows(rows);
 
+  console.log('应用覆盖数据...');
+  await applyOverrides(rows);
+
   console.log('写入 SQLite（临时文件）...');
   await writeSqlite(rows, SQLITE_NEW_PATH);
 
@@ -546,7 +552,7 @@ async function main(): Promise<void> {
   if (unchanged) {
     await writeVersionStamp();
     await rm(SQLITE_NEW_PATH, { force: true });
-    console.log('数据库全量对比无变化，已写入 app/assets/data/words.meta.txt 并退出。');
+    console.log('数据库全量对比无变化，取消更改');
     return;
   }
 
